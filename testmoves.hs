@@ -3,7 +3,7 @@ module TestMoves where
 import           Board
 import           Data.Bits
 import           Masks
-import           MovesWhite
+import           Moves
 import           Test.HUnit
 
 -- test detection movers

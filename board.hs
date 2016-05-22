@@ -49,14 +49,17 @@ instance Eq JumpData where
 empty :: Board -> Word64
 empty b = (complement (bp b .|. wp b)) .&. bitsOnTheBoard
 
-piecesOnly :: Board -> Word64
-piecesOnly b = (complement $ k b) .&. bitsOnTheBoard
-
 whiteKings :: Board -> Word64
 whiteKings b = k b .&. wp b
 
 blackKings :: Board -> Word64
 blackKings b = k b .&. bp b
+
+blackPieces :: Board -> Word64
+blackPieces b = k b `xor` bp b
+
+whitePieces :: Board -> Word64
+whitePieces b = k b `xor` wp b
 
 isKing :: Board -> Word64 -> Bool
 isKing b i = k b .&. i /= 0
@@ -77,14 +80,24 @@ downLeft x = unsafeShiftR x 9
 movePiece :: Word64 -> Move -> Word64
 movePiece x move = (x `xor` src move) .|. dst move
 
-doMove :: Board -> Move -> Player -> Board
-doMove board move player
-  | player == White = board {wp = whitePieces, k = kings}
-  | otherwise = board {bp = blackPieces, k = kings}
+doMove :: Board -> Player -> Move -> Board
+doMove board player move
+  | player == White = board {wp = whitePieces', k = kings}
+  | otherwise = board {bp = blackPieces', k = kings}
   where
-    whitePieces = movePiece (wp board) move
-    blackPieces = movePiece (bp board) move
+    whitePieces' = movePiece (wp board) move
+    blackPieces' = movePiece (bp board) move
     kings = if isKing board . src $ move then movePiece (k board) move else k board
+
+
+doJump :: Board -> Player -> Jump -> Board
+doJump board player jump = undefined
+  -- | player == White = board {wp = whitePieces', k = kings}
+  -- | otherwise = board {bp = blackPieces', k = kings}
+  -- where
+  --   whitePieces' = movePiece (wp board) move
+  --   blackPieces' = movePiece (bp board) move
+  --   kings = if isKing board . src $ move then movePiece (k board) move else k board
 
 
 ---------------------- display -------------------------

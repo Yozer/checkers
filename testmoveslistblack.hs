@@ -3,7 +3,7 @@ module TestMovesListBlack where
 import           Board
 import           Data.Bits
 import           Masks
-import           MovesBlack
+import           Moves
 import           Test.HUnit
 
 testMoveList1 :: Test

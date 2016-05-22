@@ -5,8 +5,6 @@ import qualified Data.Vector.Unboxed as V
 import           Data.Word
 
 
-
-
 invalid :: Word64
 invalid = 64 :: Word64
 
