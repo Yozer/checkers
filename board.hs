@@ -64,6 +64,13 @@ whitePieces b = k b `xor` wp b
 isKing :: Board -> Word64 -> Bool
 isKing b i = k b .&. i /= 0
 
+isWhiteKing :: Board -> Word64 -> Bool
+isWhiteKing b i = k b .&. i /= 0 && wp b .&. i /= 0
+
+isBlackKing :: Board -> Word64 -> Bool
+isBlackKing b i = k b .&. i /= 0 && bp b .&. i /= 0
+
+
 upLeft :: Word64 -> Word64
 upLeft x = unsafeShiftL x 1
 
@@ -91,14 +98,37 @@ doMove board player move
 
 
 doJump :: Board -> Player -> Jump -> Board
-doJump board player jump = undefined
-  -- | player == White = board {wp = whitePieces', k = kings}
-  -- | otherwise = board {bp = blackPieces', k = kings}
-  -- where
-  --   whitePieces' = movePiece (wp board) move
-  --   blackPieces' = movePiece (bp board) move
-  --   kings = if isKing board . src $ move then movePiece (k board) move else k board
+doJump board player jump = doJump' board player (jumpPath jump)
 
+doJump' :: Board -> Player -> [Word64] -> Board
+doJump' board player (a:b:path)
+  | path == [] = result'
+  | otherwise = doJump' result' player (b:path)
+  where
+    direction = getMoveDirection a b
+    opponent = if player == White then bp board else wp board
+    killed = getKilledPieces opponent direction a
+    whitePieces' = if player == White then (wp board `xor` a) .|. b else wp board `xor` killed
+    blackPieces' = if player == Black then (bp board `xor` a) .|. b else bp board `xor` killed
+    kings' = if isKing board killed then k board `xor` killed else k board
+    kings'' = if kings' .&. a /= 0 then (kings' `xor` a) .|. b else kings' 
+    result' = Board {wp = whitePieces', bp = blackPieces', k = kings''}
+
+getKilledPieces :: Word64 -> (Word64 -> Word64) -> Word64 -> Word64
+getKilledPieces opponent direction position
+  | killed /= 0 = killed
+  | otherwise = getKilledPieces opponent direction (direction position)
+  where
+    killed = position .&. opponent
+
+getMoveDirection :: Word64 -> Word64 -> (Word64 -> Word64)
+getMoveDirection source destination
+  | res >= 9 = upRight
+  | res > 0 = upLeft
+  | res <= -9 = downLeft
+  | otherwise = downRight
+  where
+    res = rfield destination - rfield source
 
 ---------------------- display -------------------------
 
