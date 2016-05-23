@@ -1,11 +1,13 @@
 module Main where
 
-import Board
-import Moves
-import Ai
-import Masks
-import Eval
-import Data.Word
+import           Ai
+import           Board
+import           Data.Word
+import           Eval
+import           Masks
+import           Moves
+import Data.List.Split
+
 
 main :: IO ()
 main = loop initialBoard
@@ -15,7 +17,7 @@ printMove (JumpMove x) = print path
   where
     path = map rfield $ jumpPath x
 printMove (NormalMove x) = putStrLn $ show (rfield $ src x) ++ " do " ++ show(rfield $ dst x)
-printMove _ = undefined 
+printMove _ = undefined
 
 
 moveMath from to (NormalMove x) = (rfield $ src x) == from && (rfield $ dst x) == to
@@ -28,23 +30,22 @@ loop board = do
 
   let (value, move) = alphaBeta board
   let board' = makeMove board White move
-  print (value, move)
+  printMove move
 
   putStrLn "Po alpha beta:"
   printBoard board'
 
 
-  -- from <- getLine
-  -- to <- getLine
+  [from, to] <- splitOn " " <$> getLine
 
-  -- let from' = read from::Int
-  -- let to' = read to::Int
+  let from' = read from::Int
+  let to' = read to::Int
 
-  -- let possibleActions = getActions board' Black
-  -- let blackMove = filter (\x -> moveMath from' to' x) possibleActions
+  let possibleActions = getActions board' Black
+  let blackMove = filter (\x -> moveMath from' to' x) possibleActions
 
-  -- let board'' = makeMove board' Black $ head blackMove
-  -- putStrLn "Po graczu:"
-  -- printBoard board''
-  -- loop board''
+  let board'' = makeMove board' Black $ head blackMove
+  putStrLn "Po graczu:"
+  printBoard board''
+  loop board''
 

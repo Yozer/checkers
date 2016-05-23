@@ -1,12 +1,12 @@
 module Board where
 
 import           Data.Bits
+import           Data.Char
 import           Data.List
 import           Data.List.Split
+import           Data.Maybe
 import           Data.Word
 import           Masks
-import Data.Maybe
-import Data.Char
 
 data Figure = BlackPiece | WhitePiece | BlackKing | WhiteKing | Empty | Special deriving (Show, Eq)
 data Player = White | Black deriving(Show, Eq)
@@ -26,7 +26,7 @@ type MoveList = [Move]
 type JumpList = [Jump]
 
 data MoveData = MoveData {
-  moves :: MoveList,
+  moves      :: MoveList,
   movesCount :: Int
 } deriving(Show)
 
@@ -36,7 +36,7 @@ data Jump = Jump {
 } deriving(Show, Eq, Ord)
 
 data JumpData = JumpData {
-  jumps :: [Jump],
+  jumps      :: [Jump],
   jumpsCount :: Int
 } deriving(Show)
 
@@ -87,14 +87,27 @@ downLeft x = unsafeShiftR x 9
 movePiece :: Word64 -> Move -> Word64
 movePiece x move = (x `xor` src move) .|. dst move
 
+
+whiteBottomEdge :: Word64
+whiteBottomEdge = field_1 .|. field_2 .|. field_3 .|. field_4
+
+blackBottomEdge :: Word64
+blackBottomEdge = field_29 .|. field_30 .|. field_31 .|. field_32
+
+promotePiece :: Word64 -> Player -> Word64 -> Word64
+promotePiece dst player kings
+  | (player == White && dst .&. blackBottomEdge /= 0) || (player == Black && dst .&. whiteBottomEdge /= 0) = kings .|. dst
+  | otherwise = kings
+
 doMove :: Board -> Player -> Move -> Board
 doMove board player move
-  | player == White = board {wp = whitePieces', k = kings}
-  | otherwise = board {bp = blackPieces', k = kings}
+  | player == White = board {wp = whitePieces', k = kings'}
+  | otherwise = board {bp = blackPieces', k = kings'}
   where
     whitePieces' = movePiece (wp board) move
     blackPieces' = movePiece (bp board) move
     kings = if isKing board . src $ move then movePiece (k board) move else k board
+    kings' = promotePiece (dst move) player kings
 
 
 doJump :: Board -> Player -> Jump -> Board
@@ -102,17 +115,18 @@ doJump board player jump = doJump' board player (jumpPath jump)
 
 doJump' :: Board -> Player -> [Word64] -> Board
 doJump' board player (a:b:path)
-  | path == [] = result'
-  | otherwise = doJump' result' player (b:path)
+  | path == [] = result
+  | otherwise = doJump' result player (b:path)
   where
     direction = getMoveDirection a b
     opponent = if player == White then bp board else wp board
     killed = getKilledPieces opponent direction a
     whitePieces' = if player == White then (wp board `xor` a) .|. b else wp board `xor` killed
     blackPieces' = if player == Black then (bp board `xor` a) .|. b else bp board `xor` killed
-    kings' = if isKing board killed then k board `xor` killed else k board
-    kings'' = if kings' .&. a /= 0 then (kings' `xor` a) .|. b else kings' 
-    result' = Board {wp = whitePieces', bp = blackPieces', k = kings''}
+    kings1 = (complement killed) .&. k board
+    kings2 = if kings1 .&. a /= 0 then (kings1 `xor` a) .|. b else kings1 --move our piece that made that jump if he was a king
+    kings3 = if path == [] then promotePiece b player kings2 else kings2
+    result = Board {wp = whitePieces', bp = blackPieces', k = kings3}
 
 getKilledPieces :: Word64 -> (Word64 -> Word64) -> Word64 -> Word64
 getKilledPieces opponent direction position
@@ -128,7 +142,7 @@ getMoveDirection source destination
   | res <= -9 = downLeft
   | otherwise = downRight
   where
-    res = rfield destination - rfield source
+    res = (fromIntegral $ getIndex destination) - (fromIntegral $ getIndex source)
 
 ---------------------- display -------------------------
 
@@ -148,17 +162,17 @@ mergeMoves :: MoveList -> [Word64]
 mergeMoves m = nub $ map dst m
 
 printBoardWithMoves :: Board -> MoveList -> IO () -- prints board
-printBoardWithMoves board m = putStr . unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1']) 
+printBoardWithMoves board m = putStr . unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1'])
                               . chunksOf 16 . intersperse ' ' . map (\x -> getFigureChar $ if (mapBoard $ fromIntegral x) `elem` (mergeMoves m) then Special else (getPiece board (mapBoard $ fromIntegral x))) $ [0..63]
 
 
 
 printBoardWithJumps :: Board -> Jump -> IO () -- prints board
-printBoardWithJumps board m = putStr . unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1']) 
-                              . chunksOf 16 . intersperse ' ' . map (\x -> 
-                                                                    if (mapBoard $ fromIntegral x) `elem` (jumpPath m) 
-                                                                    then (chr . (+49) . fromJust . (elemIndex . mapBoard $ fromIntegral x) . jumpPath $ m) 
-                                                                    else (getFigureChar $ getPiece board (mapBoard $ fromIntegral x))) 
+printBoardWithJumps board m = putStr . unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1'])
+                              . chunksOf 16 . intersperse ' ' . map (\x ->
+                                                                    if (mapBoard $ fromIntegral x) `elem` (jumpPath m)
+                                                                    then (chr . (+49) . fromJust . (elemIndex . mapBoard $ fromIntegral x) . jumpPath $ m)
+                                                                    else (getFigureChar $ getPiece board (mapBoard $ fromIntegral x)))
                               $ [0..63]
 
 getPiece :: Board -> Word64 -> Figure -- get piece [0..64]

@@ -1,21 +1,19 @@
 module Ai where
 
 import           Board
+import           Control.Parallel.Strategies
 import           Data.List
 import           Eval
 import           Moves
-import Control.Parallel.Strategies
 
 data MoveHolder =  None | JumpMove Jump | NormalMove Move deriving(Show, Eq, Ord)
 type AlphaResult = (Float, MoveHolder)
 
-maxEval :: Float
-maxEval = 401
 maxDeep :: Int
-maxDeep = 12
+maxDeep = 16
 
 alphaBeta :: Board -> AlphaResult
-alphaBeta board = maximum $  parMap rpar (\x -> (alphaBeta' (makeMove board White x) Black maxDeep (-maxEval) maxEval, x)) actions  --iterativeDeepening board actions ((-maxEval - 1), None)
+alphaBeta board = maximum $  parMap rpar (\x -> (alphaBeta' (makeMove board White x) Black maxDeep (-maxEval) maxEval, x)) actions
   where
     actions = getActions board White
 

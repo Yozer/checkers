@@ -26,6 +26,10 @@ topBoard :: Word64
 topBoard = field_26 .|. field_27 .|. field_28 .|. 
          field_21 .|. field_22 .|. field_23 .|.
          field_18 .|. field_19 .|. field_20
+maxEval :: Float
+maxEval = 401
+
+--- WEIGHTS
 
 pieceWeight :: Float
 pieceWeight = 5
@@ -40,6 +44,8 @@ protectFromKingLineWeight = 0.5
 piecesOnEdgeWeight :: Float
 piecesOnEdgeWeight = 2
 
+--- END OF WEIGHTS
+
 evaluate :: Board -> Player -> Float
 evaluate board player = result
   where
@@ -52,15 +58,15 @@ evaluate board player = result
                  ((pieceWeight*) . pieceCount . whitePieces $ board) -
                  ((pieceWeight*) . pieceCount . blackPieces $ board)
 
-    resultLocation :: Float
-    resultLocation = ((oppositeAreaWeight*) . pieceCount $ (whites .&. topBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (whites .&. bottomEdge)) +  ((piecesOnEdgeWeight*) . pieceCount $ (whites .&. edges)) -
-                     ((oppositeAreaWeight*) . pieceCount $ (blacks .&. bottomBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (blacks .&. topBoard)) +  ((piecesOnEdgeWeight*) . pieceCount $  (blacks .&. edges))
+    --resultLocation :: Float
+    --resultLocation = ((oppositeAreaWeight*) . pieceCount $ (whites .&. topBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (whites .&. bottomEdge)) +  ((piecesOnEdgeWeight*) . pieceCount $ (whites .&. edges)) -
+                     --((oppositeAreaWeight*) . pieceCount $ (blacks .&. bottomBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (blacks .&. topBoard)) +  ((piecesOnEdgeWeight*) . pieceCount $  (blacks .&. edges))
 
     f = filterByPlayer player
-    result = f resultType + f resultLocation 
+    result = f resultType -- + f resultLocation 
 
 filterByPlayer :: Player -> Float -> Float
-filterByPlayer p x = if p == Black then x else -x
+filterByPlayer p x = if p == White then x else -x
 
 pieceCount :: (Word64 -> Float)
 pieceCount = fromIntegral . popCount
