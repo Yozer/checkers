@@ -7,25 +7,21 @@ import Data.Bits
 import Data.Word
 
 leftEdge :: Word64
-leftEdge = field_1 .|. field_9 .|. field_17 .|. field_25
+leftEdge = mergeBoardFields [1,9,17,25]
 rightEdge :: Word64
-rightEdge = field_8 .|. field_16 .|. field_24 .|.  field_32
+rightEdge = mergeBoardFields [8,16,24,32]
 bottomEdge :: Word64
-bottomEdge = field_1 .|. field_2 .|. field_3 .|. field_4
+bottomEdge = mergeBoardFields [1..4]
 topEdge :: Word64
-topEdge = field_29 .|. field_30 .|. field_31 .|. field_32
+topEdge =mergeBoardFields [29..32]
 edges :: Word64
 edges = leftEdge .|. rightEdge
 
 bottomBoard :: Word64
-bottomBoard = field_5 .|. field_6 .|. field_7 .|. 
-         field_10 .|. field_11 .|. field_12 .|.
-         field_13 .|. field_14 .|. field_15
+bottomBoard = mergeBoardFields [5,6,7,10,11,12,13,14,15]
 
 topBoard :: Word64
-topBoard = field_26 .|. field_27 .|. field_28 .|. 
-         field_21 .|. field_22 .|. field_23 .|.
-         field_18 .|. field_19 .|. field_20
+topBoard = mergeBoardFields [26,27,28,21,22,23,18,19,20]
 maxEval :: Float
 maxEval = 401
 
@@ -47,23 +43,27 @@ piecesOnEdgeWeight = 2
 --- END OF WEIGHTS
 
 evaluate :: Board -> Player -> Float
-evaluate board player = result
+evaluate board player
+  | wp board == 0 = -maxEval
+  | bp board == 0 = maxEval
+  | otherwise = result
   where
-    whites = wp board
-    blacks = bp board
+    -- whites = wp board
+    -- blacks = bp board
 
-    resultType :: Float
-    resultType = ((kingWeight*) . pieceCount . whiteKings $ board) -
-                 ((kingWeight*) . pieceCount . blackKings $ board) +
-                 ((pieceWeight*) . pieceCount . whitePieces $ board) -
-                 ((pieceWeight*) . pieceCount . blackPieces $ board)
+    notKings = complement $ k board
+    wKingsCount = pieceCount . whiteKings $ board
+    bKingsCount = pieceCount . blackKings $ board
+    wPiecesCount = pieceCount $ notKings .&. wp board
+    bPiecesCount = pieceCount $ notKings .&. bp board
+    resultType = kingWeight * (wKingsCount - bKingsCount) + pieceWeight * (wPiecesCount - bPiecesCount)
 
     --resultLocation :: Float
     --resultLocation = ((oppositeAreaWeight*) . pieceCount $ (whites .&. topBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (whites .&. bottomEdge)) +  ((piecesOnEdgeWeight*) . pieceCount $ (whites .&. edges)) -
                      --((oppositeAreaWeight*) . pieceCount $ (blacks .&. bottomBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (blacks .&. topBoard)) +  ((piecesOnEdgeWeight*) . pieceCount $  (blacks .&. edges))
 
-    f = filterByPlayer player
-    result = f resultType -- + f resultLocation 
+    --f = filterByPlayer player
+    result = resultType -- + f resultLocation 
 
 filterByPlayer :: Player -> Float -> Float
 filterByPlayer p x = if p == White then x else -x

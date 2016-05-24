@@ -2,50 +2,59 @@ module Main where
 
 import           Ai
 import           Board
-import           Data.Word
-import           Eval
 import           Masks
 import           Moves
 import Data.List.Split
+import Data.List
 
 
 main :: IO ()
-main = loop initialBoard
+main = loop  Board {wp=mergeBoardFields [13,14,12,2], bp = field 20, k=0}
 
 printMove :: MoveHolder -> IO ()
-printMove (JumpMove x) = print path
-  where
-    path = map rfield $ jumpPath x
-printMove (NormalMove x) = putStrLn $ show (rfield $ src x) ++ " do " ++ show(rfield $ dst x)
+printMove (JumpMove x) = printPath x "x"
+printMove (NormalMove x) = printPath x "-"
 printMove _ = undefined
 
+printPath :: Path -> String -> IO()
+printPath path deli = putStrLn . intercalate deli . map show $ map rfield path
 
-moveMath from to (NormalMove x) = (rfield $ src x) == from && (rfield $ dst x) == to
-moveMath from to (JumpMove x) = head path == from && last path == to
+
+matchMove :: [MoveHolder] -> Int -> Int -> MoveHolder
+matchMove actions from to = head . filter (isMoveMatching from to) $ actions
+
+isMoveMatching :: Int -> Int -> MoveHolder -> Bool
+isMoveMatching from to (NormalMove x) = isMoveMatching' from to x
+isMoveMatching from to (JumpMove x) = isMoveMatching' from to x
+isMoveMatching _ _ _ = False
+isMoveMatching' :: Int -> Int -> Path -> Bool
+isMoveMatching' from to path = head path' == (fromIntegral from) && last path' == (fromIntegral to)
   where
-    path = map rfield $ jumpPath x
+    path' = map rfield path
 
 loop :: Board -> IO ()
 loop board = do
 
   let (value, move) = alphaBeta board
-  let board' = makeMove board White move
+  let board' = doMove board White move
+
+  putStrLn $ "After computer: " ++ (show value)
+  printBoard board'
   printMove move
 
-  putStrLn "Po alpha beta:"
-  printBoard board'
-
+  let possibleActions = getActions board' Black
+  putStrLn "Possible moves:"
+  mapM_ printMove possibleActions
 
   [from, to] <- splitOn " " <$> getLine
 
   let from' = read from::Int
   let to' = read to::Int
 
-  let possibleActions = getActions board' Black
-  let blackMove = filter (\x -> moveMath from' to' x) possibleActions
+  let blackMove = matchMove possibleActions from' to'
 
-  let board'' = makeMove board' Black $ head blackMove
-  putStrLn "Po graczu:"
+  let board'' = doMove board' Black blackMove
+  putStrLn "After player:"
   printBoard board''
   loop board''
 

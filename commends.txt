@@ -1,0 +1,11 @@
+ghc -O2 -rtsopts -with-rtsopts=-N -threaded main.hs
+
+ghc -O2 -prof -fprof-auto -rtsopts -with-rtsopts=-N -threaded main.hs
+ghc -O2 -prof -fprof-auto -rtsopts main.hs
+
+
+kompilacja:
+ghc -O2 -prof -fprof-auto -threaded -rtsopts main.hs
+
+z profilowaniem:
+main.exe +RTS -p -N8
