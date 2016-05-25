@@ -5,6 +5,7 @@ import           Data.List
 import           Data.List.Split
 import           Data.Word
 import           Masks
+import Debug.Trace
 
 data Figure = BlackPiece | WhitePiece | BlackKing | WhiteKing | Empty | Special deriving (Show, Eq)
 data Player = White | Black deriving(Show, Eq)
@@ -96,7 +97,7 @@ doMove board _ _ = board
 
 doJump' :: Board -> Player -> Path -> Board
 doJump' board player (a:b:path)
-  | path == [] = result
+  | path == [] = result {k = promotedKings}
   | otherwise = doJump' result player (b:path)
   where
     direction = getMoveDirection a b
@@ -107,10 +108,7 @@ doJump' board player (a:b:path)
     kings1 = (complement killed) .&. k board
     kings2 = if kings1 .&. a /= 0 then (kings1 `xor` a) .|. b else kings1 --move our piece that made that jump if he was a king
     result = Board {wp = whitePieces', bp = blackPieces', k = kings2}
-
-doJump' board player (a:_) = board {k = kings}
-  where
-    kings = promotePiece a player (k board)
+    promotedKings = promotePiece b player (k result)
 
 doJump' x _ _ = x
 

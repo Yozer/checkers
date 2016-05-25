@@ -116,8 +116,8 @@ testMove16 = TestCase $ assertEqual "test promoting move right - black"
 -- test jumps
 testMove17 :: Test
 testMove17 = TestCase $ assertEqual "test piece jump left - black"
-   Board {wp = mergeBoardFields [28, 18], bp = mergeBoardFields [6, 3], k = mergeBoardFields [24]}
-  (doMove Board {wp = mergeBoardFields [28, 18, 7], bp = mergeBoardFields [6, 12], k = mergeBoardFields [24, 7]} Black $ JumpMove (getBoardFields [12, 3]))
+   Board {wp = mergeBoardFields [28, 18], bp = mergeBoardFields [6, 3], k = mergeBoardFields [28, 3]}
+  (doMove Board {wp = mergeBoardFields [28, 18, 7], bp = mergeBoardFields [6, 12], k = mergeBoardFields [28, 7]} Black $ JumpMove (getBoardFields [12, 3]))
 
 testMove18 :: Test
 testMove18 = TestCase $ assertEqual "test piece jump right - black"
@@ -131,7 +131,7 @@ testMove19 = TestCase $ assertEqual "test piece multi jump - white"
 
 testMove20 :: Test
 testMove20 = TestCase $ assertEqual "test piece multi jump - white"
-    Board {wp = field 32, bp = mergeBoardFields [18, 10, 11], k = 0}
+    Board {wp = field 32, bp = mergeBoardFields [18, 10, 11], k = field 32}
   (doMove  Board {wp = field 14, bp = mergeBoardFields [18, 19, 10, 11, 28], k = 0} White $ JumpMove (getBoardFields [14, 23, 32]))
 
 testMove21 :: Test
@@ -146,7 +146,7 @@ testMove22 = TestCase $ assertEqual "test piece multi jump - white"
 
 testMove23 :: Test
 testMove23 = TestCase $ assertEqual "test piece multi jump - white"
-  Board {wp = field 32, bp = 0, k = 0}
+  Board {wp = field 32, bp = 0, k = field 32}
   (doMove  Board {wp = field 14, bp = mergeBoardFields[19 , 28], k = 0} White $ JumpMove (getBoardFields [14,23,32]))
 
 testMove24 :: Test
@@ -164,8 +164,13 @@ testMove26 = TestCase $ assertEqual "test piece multi jump - black"
   Board {bp = mergeBoardFields [1, 13], wp = mergeBoardFields [], k = mergeBoardFields [1]}
   (doMove  Board {bp = mergeBoardFields [1, 6], wp = mergeBoardFields [10], k = mergeBoardFields [1]} Black $ JumpMove (getBoardFields [6,13]))
 
+testMove27 :: Test
+testMove27 = TestCase $ assertEqual "test piece multi jump - black"
+  Board{wp=mergeBoardFields  [1,9],bp=mergeBoardFields [31,23,22,2,17,13],k=field 2}
+  (doMove  Board{wp=mergeBoardFields  [1,9,6,14],bp=mergeBoardFields [31,23,22,18,17,13],k=0} Black $ JumpMove (getBoardFields [18,11,2]))
+
 getTestList :: [Test]
 getTestList = [testCountPieces1, testCountPieces2, testCountPieces3, testCountPieces4, testCountPieces5, testCountPieces6, testCountPieces7,
                testMove1, testMove2, testMove3, testMove4, testMove5, testMove6, testMove7, testMove8, testMove9, testMove10, testMove11, testMove12,
                testMove13, testMove14, testMove15, testMove16,
-               testMove17, testMove18, testMove19, testMove20, testMove21, testMove22, testMove23, testMove24, testMove25, testMove26]
+               testMove17, testMove18, testMove19, testMove20, testMove21, testMove22, testMove23, testMove24, testMove25, testMove26, testMove27]

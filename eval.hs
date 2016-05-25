@@ -43,10 +43,7 @@ piecesOnEdgeWeight = 2
 --- END OF WEIGHTS
 
 evaluate :: Board -> Player -> Float
-evaluate board player
-  | wp board == 0 = -maxEval
-  | bp board == 0 = maxEval
-  | otherwise = result
+evaluate board player = if player == White then  result else negate result
   where
     -- whites = wp board
     -- blacks = bp board
@@ -62,7 +59,7 @@ evaluate board player
     --resultLocation = ((oppositeAreaWeight*) . pieceCount $ (whites .&. topBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (whites .&. bottomEdge)) +  ((piecesOnEdgeWeight*) . pieceCount $ (whites .&. edges)) -
                      --((oppositeAreaWeight*) . pieceCount $ (blacks .&. bottomBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (blacks .&. topBoard)) +  ((piecesOnEdgeWeight*) . pieceCount $  (blacks .&. edges))
 
-    --f = filterByPlayer player
+    f = filterByPlayer player
     result = resultType -- + f resultLocation 
 
 filterByPlayer :: Player -> Float -> Float

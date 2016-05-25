@@ -9,7 +9,7 @@ import Data.List
 
 
 main :: IO ()
-main = loop  Board {wp=mergeBoardFields [13,14,12,2], bp = field 20, k=0}
+main = loop  initialBoard
 
 printMove :: MoveHolder -> IO ()
 printMove (JumpMove x) = printPath x "x"
@@ -35,7 +35,7 @@ isMoveMatching' from to path = head path' == (fromIntegral from) && last path' =
 loop :: Board -> IO ()
 loop board = do
 
-  let (value, move) = alphaBeta board
+  let (value, move) = alphabeta 9 $ AlphaInfo board White
   let board' = doMove board White move
 
   putStrLn $ "After computer: " ++ (show value)
