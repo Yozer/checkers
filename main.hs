@@ -9,7 +9,7 @@ import Data.List
 
 
 main :: IO ()
-main = loop initialBoard
+main = loop Board {wp=mergeBoardFields [6,12], bp=mergeBoardFields [14,29,31],k=0}
 
 printMove :: MoveHolder -> IO ()
 printMove (JumpMove x) = printPath x "x"
