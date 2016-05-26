@@ -23,7 +23,7 @@ bottomBoard = mergeBoardFields [5,6,7,10,11,12,13,14,15]
 topBoard :: Word64
 topBoard = mergeBoardFields [26,27,28,21,22,23,18,19,20]
 maxEval :: Float
-maxEval = 401
+maxEval = 200401
 
 --- WEIGHTS
 
@@ -42,8 +42,11 @@ piecesOnEdgeWeight = 2
 
 --- END OF WEIGHTS
 
-evaluate :: Board -> Player -> Float
-evaluate board player = if player == White then  result else negate result
+evaluate :: Board -> Player ->  Float
+evaluate board player
+  | wp board == 0 = f $ -maxEval
+  | bp board == 0 = f $ maxEval
+  | otherwise = f $ result
   where
     -- whites = wp board
     -- blacks = bp board

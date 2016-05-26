@@ -9,7 +9,7 @@ import Data.List
 
 
 main :: IO ()
-main = loop  initialBoard
+main = loop initialBoard
 
 printMove :: MoveHolder -> IO ()
 printMove (JumpMove x) = printPath x "x"
@@ -32,17 +32,21 @@ isMoveMatching' from to path = head path' == (fromIntegral from) && last path' =
   where
     path' = map rfield path
 
+
+me = White
+opponent = Black
+
 loop :: Board -> IO ()
 loop board = do
 
-  let (value, move) = alphabeta 9 $ AlphaInfo board White
-  let board' = doMove board White move
+  let (value, move) = alphaBeta board me
+  let board' = doMove board me move
 
   putStrLn $ "After computer: " ++ (show value)
   printBoard board'
   printMove move
 
-  let possibleActions = getActions board' Black
+  let possibleActions = getActions board' opponent
   putStrLn "Possible moves:"
   mapM_ printMove possibleActions
 
@@ -53,7 +57,7 @@ loop board = do
 
   let blackMove = matchMove possibleActions from' to'
 
-  let board'' = doMove board' Black blackMove
+  let board'' = doMove board' opponent blackMove
   putStrLn "After player:"
   printBoard board''
   loop board''
