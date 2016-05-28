@@ -5,6 +5,7 @@ import qualified Data.Vector.Unboxed as V
 import           Data.Word
 import Data.List
 
+
 invalid :: Word64
 invalid = 64 :: Word64
 
@@ -18,6 +19,11 @@ mapBoard i = V.fromList [invalid, field 29, invalid, field 30, invalid, field 31
              invalid, field 5, invalid, field 6, invalid, field 7, invalid, field 8,
              field 1, invalid, field 2, invalid, field 3, invalid, field 4, invalid] V.! i
 
+
+kBoard :: Int -> Int -- board mapping
+kBoard i = V.fromList [30,33,33,33,33,34,34,33,34,36,36,35,36,38,38,34,34,38,38,36,35,36,36,34,33,34,34,33,33,33,33,30] V.! (i - 1)
+
+
 bitsOnTheBoard :: Word64
 bitsOnTheBoard = mergeBoardFields [1..32]
 
@@ -25,8 +31,10 @@ bitsOnTheBoard = mergeBoardFields [1..32]
 mergeBoardFields :: [Int] -> Word64
 mergeBoardFields = foldl' (.|.) 0 . getBoardFields
 
+
 getBoardFields :: [Int] -> [Word64]
 getBoardFields = map field
+
 
 getIndex :: Word64 -> Word64
 getIndex x
@@ -34,8 +42,10 @@ getIndex x
   | otherwise = fromIntegral $ 63 - countLeadingZeros x
 
 
+
 s :: Word64 -> Word64 -- get powers of two
 s i = if i < 64 then unsafeShiftL 1 (fromIntegral i) else 0
+
 
 field :: Int -> Word64
 field 0 = 0
@@ -80,6 +90,7 @@ field 31 = s 55
 field 32 = s 63
 
 field _ = invalid
+
 
 rfield :: Word64 -> Int
 rfield 0 = 0

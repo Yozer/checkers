@@ -9,7 +9,7 @@ import Data.List
 
 
 main :: IO ()
-main = loop Board {wp=mergeBoardFields [6,12], bp=mergeBoardFields [14,29,31],k=0}
+main = if me == White then loopWhite initialBoard else loopBlack initialBoard
 
 printMove :: MoveHolder -> IO ()
 printMove (JumpMove x) = printPath x "x"
@@ -36,8 +36,8 @@ isMoveMatching' from to path = head path' == (fromIntegral from) && last path' =
 me = White
 opponent = Black
 
-loop :: Board -> IO ()
-loop board = do
+loopWhite :: Board -> IO ()
+loopWhite board = do
 
   let (value, move) = alphaBeta board me
   let board' = doMove board me move
@@ -60,5 +60,32 @@ loop board = do
   let board'' = doMove board' opponent blackMove
   putStrLn "After player:"
   printBoard board''
-  loop board''
+  loopWhite board''
 
+
+
+loopBlack :: Board -> IO ()
+loopBlack board = do
+
+  let possibleActions = getActions board opponent
+  putStrLn "Possible moves:"
+  mapM_ printMove possibleActions
+
+  [from, to] <- splitOn " " <$> getLine
+
+  let from' = read from::Int
+  let to' = read to::Int
+
+  let blackMove = matchMove possibleActions from' to'
+  let board' = doMove board opponent blackMove
+
+  putStrLn "After player:"
+  printBoard board'
+
+  let (value, move) = alphaBeta board' me
+  let board'' = doMove board' me move
+
+  putStrLn $ "After computer: " ++ (show value)
+  printBoard board''
+  printMove move
+  loopBlack board''

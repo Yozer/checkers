@@ -1,3 +1,5 @@
+
+
 module Board where
 
 import           Data.Bits
@@ -7,13 +9,15 @@ import           Data.Word
 import           Masks
 import Debug.Trace
 
+
+
 data Figure = BlackPiece | WhitePiece | BlackKing | WhiteKing | Empty | Special deriving (Show, Eq)
 data Player = White | Black deriving(Show, Eq)
 
 data Board = Board {
-  wp :: Word64,
-  bp :: Word64,
-  k  :: Word64
+  wp :: {-# UNPACK #-} !Word64,
+  bp :: {-# UNPACK #-} !Word64,
+  k  :: {-# UNPACK #-} !Word64
 } deriving (Show, Eq)
 
 type Path = [Word64]
@@ -22,26 +26,34 @@ type MovesList = [Path]
 data MoveHolder =  None | JumpMove Path | NormalMove Path deriving(Show, Eq, Ord)
 
 ------ HELPERS
+
 empty :: Board -> Word64
 empty b = (complement (bp b .|. wp b)) .&. bitsOnTheBoard
+
 
 whiteKings :: Board -> Word64
 whiteKings b = k b .&. wp b
 
+
 blackKings :: Board -> Word64
 blackKings b = k b .&. bp b
+
 
 blackPieces :: Board -> Word64
 blackPieces b = (complement $ k b) .&. bp b
 
+
 whitePieces :: Board -> Word64
 whitePieces b = (complement $ k b) .&. wp b
+
 
 isKing :: Board -> Word64 -> Bool
 isKing b i = k b .&. i /= 0
 
+
 isWhiteKing :: Board -> Word64 -> Bool
 isWhiteKing b i = k b .&. i /= 0 && wp b .&. i /= 0
+
 
 isBlackKing :: Board -> Word64 -> Bool
 isBlackKing b i = k b .&. i /= 0 && bp b .&. i /= 0
@@ -50,28 +62,38 @@ isBlackKing b i = k b .&. i /= 0 && bp b .&. i /= 0
 upLeft :: Word64 -> Word64
 upLeft x = unsafeShiftL x 1
 
+
 upRight :: Word64 -> Word64
 upRight x = unsafeShiftL x 9
 
+
 downRight :: Word64 -> Word64
 downRight x = unsafeShiftR x 1
+
 
 downLeft :: Word64 -> Word64
 downLeft x = unsafeShiftR x 9
 
 
+removePieceByIndex :: Word64 -> Word64 -> Word64
+removePieceByIndex x i = x `xor` i
+
+
 whiteBottomEdge :: Word64
-whiteBottomEdge = mergeBoardFields [1..4]
+whiteBottomEdge = 16843009
+
 
 blackBottomEdge :: Word64
-blackBottomEdge = mergeBoardFields [29..32]
+blackBottomEdge = 9259542121117908992
 
 -- END OF HELPERS
 
 --- MOVE AND JUMPS EVALUATION
 
+
 movePiece :: Word64 -> Word64 -> Word64 -> Word64 -- make a normal move, no validation performed
-movePiece x from to = (x `xor` from) .|. to
+movePiece x from to = (removePieceByIndex x from) .|. to
+
 
 promotePiece :: Word64 -> Player -> Word64 -> Word64 -- promote piece if needed
 promotePiece dst player kings
@@ -84,11 +106,17 @@ doMove board player (NormalMove move)
   | player == White = board {wp = whitePieces', k = kings'}
   | otherwise = board {bp = blackPieces', k = kings'}
   where
+
     from = head move
+
     to = last move
+
     whitePieces' = movePiece (wp board) from to -- move piece for white
+
     blackPieces' = movePiece (bp board) from to -- move piece for black
+
     kings = if isKing board from then movePiece (k board) from to else k board
+
     kings' = promotePiece to player kings
 
 
@@ -96,19 +124,25 @@ doMove board player (JumpMove jump) = doJump' board player jump
 doMove board _ _ = board
 
 doJump' :: Board -> Player -> Path -> Board
-doJump' board player (a:b:path)
-  | path == [] = result {k = promotedKings}
-  | otherwise = doJump' result player (b:path)
+doJump' board player (a:path)
+  | path == [] = board {k = promotedKings}
+  | otherwise = doJump' result player path
   where
+    b = head path
     direction = getMoveDirection a b
+
     opponent = if player == White then bp board else wp board
     killed = getKilledPieces opponent direction a
+
     whitePieces' = if player == White then (wp board `xor` a) .|. b else wp board `xor` killed
+
     blackPieces' = if player == Black then (bp board `xor` a) .|. b else bp board `xor` killed
     kings1 = (complement killed) .&. k board
     kings2 = if kings1 .&. a /= 0 then (kings1 `xor` a) .|. b else kings1 --move our piece that made that jump if he was a king
     result = Board {wp = whitePieces', bp = blackPieces', k = kings2}
-    promotedKings = promotePiece b player (k result)
+
+    promotedKings = promotePiece a player (k board)
+
 
 doJump' x _ _ = x
 
@@ -116,6 +150,7 @@ doJump' x _ _ = x
 
 
 -- check if game has ended
+
 isGameEnded :: Board -> Bool
 isGameEnded board = bp board == 0 || wp board == 0
 
@@ -127,7 +162,9 @@ getKilledPieces opponent direction position
   | killed /= 0 = killed
   | otherwise = getKilledPieces opponent direction (direction position)
   where
+
     killed = position .&. opponent
+
 
 getMoveDirection :: Word64 -> Word64 -> (Word64 -> Word64)
 getMoveDirection source destination
@@ -136,6 +173,7 @@ getMoveDirection source destination
   | res <= -9 = downLeft
   | otherwise = downRight
   where
+
     res = (fromIntegral $ getIndex destination) - (fromIntegral $ getIndex source)
 
 ---------------------- display -------------------------
