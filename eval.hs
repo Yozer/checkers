@@ -24,7 +24,7 @@ topBoard :: Word64
 topBoard = mergeBoardFields [26,27,28,21,22,23,18,19,20]
 
 maxEval :: Int
-maxEval = 4001
+maxEval = 40001
 
 --- WEIGHTS
 

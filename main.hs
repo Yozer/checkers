@@ -6,10 +6,13 @@ import           Masks
 import           Moves
 import Data.List.Split
 import Data.List
+import Table
 
 
 main :: IO ()
-main = if me == White then loopWhite initialBoard else loopBlack initialBoard
+main = do
+  table <- allocate
+  (if me == White then loopWhite else loopBlack) (initialGameState me) table
 
 printMove :: MoveHolder -> IO ()
 printMove (JumpMove x) = printPath x "x"
@@ -36,36 +39,15 @@ isMoveMatching' from to path = head path' == (fromIntegral from) && last path' =
 me = White
 opponent = Black
 
-loopWhite :: Board -> IO ()
-loopWhite board = do
+loopWhite :: GameState -> TTableRef -> IO ()
+loopWhite gameState table = do
 
-  let (value, move) = alphaBeta board me
-  let board' = doMove board me move
+  (value, move) <- iterativeDeepening gameState table
+  let GameState board player hash = doMove gameState move
 
   putStrLn $ "After computer: " ++ (show value)
-  printBoard board'
+  printBoard board
   printMove move
-
-  let possibleActions = getActions board' opponent
-  putStrLn "Possible moves:"
-  mapM_ printMove possibleActions
-
-  [from, to] <- splitOn " " <$> getLine
-
-  let from' = read from::Int
-  let to' = read to::Int
-
-  let blackMove = matchMove possibleActions from' to'
-
-  let board'' = doMove board' opponent blackMove
-  putStrLn "After player:"
-  printBoard board''
-  loopWhite board''
-
-
-
-loopBlack :: Board -> IO ()
-loopBlack board = do
 
   let possibleActions = getActions board opponent
   putStrLn "Possible moves:"
@@ -77,15 +59,36 @@ loopBlack board = do
   let to' = read to::Int
 
   let blackMove = matchMove possibleActions from' to'
-  let board' = doMove board opponent blackMove
+
+  let GameState board' player' hash' = doMove (GameState board player hash) blackMove
+  putStrLn "After player:"
+  printBoard board'
+  loopWhite (GameState board' player' hash') table
+
+
+
+loopBlack :: GameState -> TTableRef -> IO ()
+loopBlack (GameState board player hash) table = do
+
+  let possibleActions = getActions board opponent
+  putStrLn "Possible moves:"
+  mapM_ printMove possibleActions
+
+  [from, to] <- splitOn " " <$> getLine
+
+  let from' = read from::Int
+  let to' = read to::Int
+
+  let blackMove = matchMove possibleActions from' to'
+  let GameState board' player' hash' = doMove (GameState board player hash) blackMove
 
   putStrLn "After player:"
   printBoard board'
 
-  let (value, move) = alphaBeta board' me
-  let board'' = doMove board' me move
+  (value, move) <- iterativeDeepening (GameState board' player' hash') table
+  let GameState board'' player' hash'' = doMove (GameState board' player' hash') move
 
   putStrLn $ "After computer: " ++ (show value)
   printBoard board''
   printMove move
-  loopBlack board''
+  loopBlack (GameState board'' player' hash'') table

@@ -41,8 +41,6 @@ getIndex x
   | x == 0 = 0
   | otherwise = fromIntegral $ 63 - countLeadingZeros x
 
-
-
 s :: Word64 -> Word64 -- get powers of two
 s i = if i < 64 then unsafeShiftL 1 (fromIntegral i) else 0
 
