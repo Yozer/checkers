@@ -24,7 +24,11 @@ printPath path deli = putStrLn . intercalate deli . map show $ map rfield path
 
 
 matchMove :: [MoveHolder] -> Int -> Int -> MoveHolder
-matchMove actions from to = head . filter (isMoveMatching from to) $ actions
+matchMove actions from to
+  | null matchedActions = None
+  | otherwise = head matchedActions
+  where
+    matchedActions = filter (isMoveMatching from to) $ actions
 
 isMoveMatching :: Int -> Int -> MoveHolder -> Bool
 isMoveMatching from to (NormalMove x) = isMoveMatching' from to x
@@ -86,9 +90,9 @@ loopBlack (GameState board player hash) table = do
   printBoard board'
 
   (value, move) <- iterativeDeepening (GameState board' player' hash') table
-  let GameState board'' player' hash'' = doMove (GameState board' player' hash') move
+  let GameState board'' player'' hash'' = doMove (GameState board' player' hash') move
 
   putStrLn $ "After computer: " ++ (show value)
   printBoard board''
   printMove move
-  loopBlack (GameState board'' player' hash'') table
+  loopBlack (GameState board'' player'' hash'') table

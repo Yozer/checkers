@@ -57,10 +57,10 @@ maskTop =  mergeBoardFields [21..32]
 maskBottom =  mergeBoardFields [1..12]
 mask7th = mergeBoardFields [25..28]
 
-evaluate :: Board -> Player -> Int -> Int -> Int -> Int 
-evaluate board player ahead alpha beta
-  | wp board == 0 = f $ -maxEval + ahead
-  | bp board == 0 = f $ maxEval - ahead
+evaluate :: Board -> Player -> Int -> Int -> Int 
+evaluate board player alpha beta
+  | wp board == 0 = f $ -maxEval
+  | bp board == 0 = f $ maxEval 
   | otherwise = f result
   where
 
