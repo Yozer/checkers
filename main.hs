@@ -46,7 +46,7 @@ opponent = Black
 loopWhite :: GameState -> TTableRef -> IO ()
 loopWhite gameState table = do
 
-  (value, move) <- iterativeDeepening gameState table
+  AlphaResult value move <- iterativeDeepening gameState table
   let GameState board player hash = doMove gameState move
 
   putStrLn $ "After computer: " ++ (show value)
@@ -89,7 +89,7 @@ loopBlack (GameState board player hash) table = do
   putStrLn "After player:"
   printBoard board'
 
-  (value, move) <- iterativeDeepening (GameState board' player' hash') table
+  AlphaResult value move <- iterativeDeepening (GameState board' player' hash') table
   let GameState board'' player'' hash'' = doMove (GameState board' player' hash') move
 
   putStrLn $ "After computer: " ++ (show value)
