@@ -217,15 +217,15 @@ initialBoard =
     kings = 0
   in Board {wp = white, bp = black, k = kings}
 
-initialGameState :: Player -> GameState
-initialGameState p = GameState initialBoard p (hashBoard initialBoard p)
+initialGameState :: GameState
+initialGameState = GameState initialBoard White (hashBoard initialBoard White)
 
-printBoard :: Board -> IO () -- prints board
-printBoard board = putStr . unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1']) . chunksOf 16 . intersperse ' ' . map (getFigureChar . getPiece board . mapBoard) $ [0..63]
+printBoard :: Board -> String -- prints board
+printBoard board = unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1']) . chunksOf 16 . intersperse ' ' . map (getFigureChar . getPiece board . mapBoard) $ [0..63]
 
 
-printBoardWithPath :: Board -> Path -> IO () -- prints board
-printBoardWithPath board m = putStr . unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1'])
+printBoardWithPath :: Board -> Path -> String -- prints board
+printBoardWithPath board m = unlines . (++["  1 2 3 4 5 6 7 8"])  . zipWith (++) (map (:" ") ['8','7'..'1'])
                               . chunksOf 16 . intersperse ' ' . map (\x -> getFigureChar $ if (mapBoard $ fromIntegral x) `elem` m then Special else (getPiece board (mapBoard $ fromIntegral x))) $ ([0..63] :: [Int])
 
 

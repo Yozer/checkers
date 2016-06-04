@@ -2,87 +2,79 @@
 module Ai where
 
 import           Board
-import           Control.Parallel.Strategies
+import           Data.Int
+import           Data.Time.Clock.POSIX
+import           Data.Tree
 import           Data.Word
 import           Debug.Trace
 import           Eval
 import           Moves
+import           System.Clock
 import           Table
-import Data.Time.Clock.POSIX
+
+type MyTree = Tree (GameState, Int)
+
 
 data AlphaResult = AlphaResult Int MoveHolder | Timeout deriving(Eq, Show)
 
 takeValue (AlphaResult value _) = value
 takeMove (AlphaResult _ move) = move
 
-maxDeep :: Int
-maxDeep = 52
-maxTime :: Int
-maxTime = 2*60-3
+maxDepth :: Int
+maxDepth = 52
+maxTime :: Int64
+maxTime = 10
 
--- search board = do
-  
---   gen <- R.create
---   t <- search' time (getRoot board White) gen
---   -- let trials = 200000
---   -- t <- withSystemRandom . asGenST $ \gen -> run gen trials -- tworzymy randoma i odpalamy drzwo
---   --print $ allChildren t
---   return . move . maximumBy (\a b -> compare (value a / (realToFrac $ visits a)) (value b / (realToFrac $ visits b))) $ allChildren t
 
--- search' :: Int -> FullUctNode -> R.Gen GHC.Prim.RealWorld -> IO FullUctNode
--- search' time !t gen = do
---   currentTime <-  round `fmap` getPOSIXTime 
---   !newTree <- selectAction gen t
---   if currentTime >= (time + maxTime) then return newTree
---   else search' time newTree gen
+getCurrentTime :: Clock -> IO Int64
+getCurrentTime clock = getTime clock >>= return . sec
 
-getTime :: IO Int
-getTime = round `fmap` getPOSIXTime 
-
-isTimeElapsed :: Int -> Int -> Bool
+isTimeElapsed :: Int64 -> Int64 -> Bool
 isTimeElapsed time currentTime = (currentTime - time) > maxTime
 
 iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
 iterativeDeepening gameState v = do
-  time <- getTime
-  iterativeDeepening' gameState v 6 0 time
+  let clock = Realtime
+  time <- getCurrentTime clock
+  iterativeDeepening' gameState v 10 0 time clock
 
-iterativeDeepening' :: GameState -> TTableRef -> Int -> Int -> Int -> IO AlphaResult
-iterativeDeepening' gameState v depth firstGuess time = do
-  result <- mtdf gameState v firstGuess depth time
-  if depth >= maxDeep then return result
-  else if result == Timeout then return Timeout
+iterativeDeepening' :: GameState -> TTableRef -> Int -> Int -> Int64 -> Clock -> IO AlphaResult
+iterativeDeepening' gameState v depth firstGuess time clock = do
+  result <-  mtdf gameState v firstGuess depth time clock
+  if depth >= maxDepth || result == Timeout then return result
   else do
-    recurResult <- iterativeDeepening' gameState v (depth + 2) (takeValue result) time
+    recurResult <- trace ("depth: " ++ show(depth)) $ iterativeDeepening' gameState v (depth + 2) (takeValue result) time clock
     return $ if recurResult == Timeout then result else recurResult
 
-mtdf :: GameState -> TTableRef -> Int -> Int -> Int -> IO AlphaResult
-mtdf gameState v first = mtdf' gameState v g upperBound lowerBound
+mtdf :: GameState -> TTableRef -> Int -> Int -> Int64 -> Clock -> IO AlphaResult
+mtdf gameState v first clock = mtdf' gameState v g upperBound lowerBound clock
   where
     g = AlphaResult first None
     upperBound = maxEval
     lowerBound = -maxEval
 
-mtdf' :: GameState -> TTableRef -> AlphaResult -> Int -> Int -> Int -> Int -> IO AlphaResult
-mtdf' gameState v result@(AlphaResult g _) upperBound lowerBound depth time = do
+mtdf' :: GameState -> TTableRef -> AlphaResult -> Int -> Int -> Int -> Int64 -> Clock -> IO AlphaResult
+mtdf' gameState v result@(AlphaResult g _) upperBound lowerBound depth time clock = do
   let beta = if lowerBound == g then g + 1 else g
-  currentTime <- getTime
+  currentTime <- getCurrentTime clock
   if lowerBound >= upperBound then return result
   else if isTimeElapsed time currentTime then return Timeout
-  else do 
-    result' <-alphaBeta' gameState depth (beta - 1) beta v time
+  else do
+    result' <-alphaBeta' gameState depth (beta - 1) beta v time clock
     if result' == Timeout then return Timeout
     else do
       let g' = takeValue result'
       let upperBound' =  if g' < beta then g' else upperBound
       let lowerBound' = if g' >= beta then g' else lowerBound
-      mtdf' gameState v result' upperBound' lowerBound' depth time
+      mtdf' gameState v result' upperBound' lowerBound' depth time clock
 
-mtdf' _ _ Timeout _ _ _ _ = return Timeout
+mtdf' _ _ Timeout _ _ _ _ _ = return Timeout
 
-alphaBeta' :: GameState -> Int -> Int -> Int ->  TTableRef -> Int -> IO AlphaResult
-alphaBeta' gameState@(GameState board player hash) depth alpha beta v time = do
-  currentTime <- getTime
+
+
+alphaBeta' :: GameState -> Int -> Int -> Int ->  TTableRef -> Int64 -> Clock -> IO AlphaResult
+alphaBeta' gameState@(GameState board player hash) depth alpha beta v time clock = do
+  currentTime <- getCurrentTime clock
   if isTimeElapsed time currentTime then return Timeout
   else do
     ttEntry <- readTT hash v
@@ -97,14 +89,14 @@ alphaBeta' gameState@(GameState board player hash) depth alpha beta v time = do
     if ttEntry /= TTNone && (not isOldDepth) && (tFlag ttEntry == Exact || alpha' >= beta') then return $ AlphaResult (tValue ttEntry) (tMove ttEntry)
     else if depth == 0 || isGameEnded board then return $ AlphaResult (evaluate board player alpha' beta') None
     else if null actions then return $ AlphaResult (-maxEval) None
-    else makeMoves actions gameState depth (AlphaResult (-maxEval) None) alpha' hash alpha' beta' v time
+    else makeMoves actions gameState depth (AlphaResult (-maxEval) None) alpha' hash alpha' beta' v time clock
 
 
-makeMoves :: [MoveHolder] -> GameState -> Int -> AlphaResult -> Int -> Word64 -> Int -> Int -> TTableRef -> Int -> IO AlphaResult
-makeMoves (move:restMoves) gameState depth (AlphaResult best bestMove) alphaOrigin sourceHash alpha beta v time = do
+makeMoves :: [MoveHolder] -> GameState -> Int -> AlphaResult -> Int -> Word64 -> Int -> Int -> TTableRef -> Int64 -> Clock -> IO AlphaResult
+makeMoves (move:restMoves) gameState depth (AlphaResult best bestMove) alphaOrigin sourceHash alpha beta v time clock = do
   let nextState = doMove gameState move
-  result <- alphaBeta' nextState (depth-1) (-beta) (-alpha) v time
-  if result == Timeout then return Timeout
+  result <- alphaBeta' nextState (depth-1) (-beta) (-alpha) v time clock
+  if result == Timeout then return result
   else do
     let value = negate . takeValue $ result
     let bestMove' = if value > best then move else bestMove
@@ -121,4 +113,4 @@ makeMoves (move:restMoves) gameState depth (AlphaResult best bestMove) alphaOrig
       writeTT sourceHash tt v
       return $ AlphaResult best' bestMove'
       )
-    else makeMoves restMoves gameState depth (AlphaResult best' bestMove') alphaOrigin sourceHash alpha' beta v time
+    else makeMoves restMoves gameState depth (AlphaResult best' bestMove') alphaOrigin sourceHash alpha' beta v time clock
