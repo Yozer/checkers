@@ -7,15 +7,14 @@ import           Board
 import           Control.Monad
 import           Data.List
 import           Data.Maybe
+import           Debug.Trace
 import           Masks
 import           Moves
 import           System.Environment
+import           System.IO
 import           Table
 import           Text.ParserCombinators.Parsec
-import System.IO
-import qualified System.IO.Strict as IOS 
 import           Text.ParserCombinators.Parsec.Number
-import Debug.Trace
 
 printMove :: MoveHolder -> String
 printMove (JumpMove x) = printPath x "x"
@@ -23,7 +22,7 @@ printMove (NormalMove x) = printPath x "-"
 printMove _ = "None"
 
 printPath :: Path -> String -> String
-printPath path deli = intercalate deli . map show $ map rfield path
+printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
 
 data PDN =   Move (Int,Int) -- pozycja startowa i koncowa
            | Kill [Int]  -- pozycja startowa to glowa, pozniej kolejne pozycje
@@ -42,8 +41,8 @@ matchMove' actions path
     matchedActions = filter (isMoveMatching path) $ actions
 
 isMoveMatching :: [Int] -> MoveHolder -> Bool
-isMoveMatching path (NormalMove x) = getBoardFields path == x
-isMoveMatching path (JumpMove x) = getBoardFields path == x
+isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
+isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
 isMoveMatching _ _ = False
 
 
@@ -64,7 +63,7 @@ parseMove = do
             return $ Move (x1,x2)
 
 parseKill = do
-            x1 <- sepBy (parsePos) (char 'x')
+            x1 <- sepBy parsePos (char 'x')
             eof
             case x1 of
               [] -> unexpected "cos musi byc"
@@ -85,21 +84,18 @@ readMove actions = do
 loopGame :: GameState -> TTableRef -> Player -> IO ()
 loopGame state@(GameState board player _) table me = do
   let possibleActions = getActions board player
-  
+
   AlphaResult _ !move <- if player == me then iterativeDeepening state table
-                             else (do 
+                             else (do
                                       -- hPutStrLn stderr "Possible actions"
-                                      -- when (me == White) $ mapM_ (hPutStrLn stderr . printMove) possibleActions 
+                                      -- when (me == White) $ mapM_ (hPutStrLn stderr . printMove) possibleActions
                                       !x <- readMove possibleActions
                                       return $ AlphaResult 0 x)
 
-  when (move /= None) (do 
-    when (player == me) $ (do
-     putStrLn . printMove  $ move
-     hFlush stdout
-     )
+  when (move /= None) (do
+    when (player == me) . putStrLn . printMove $ move
     let newState@(GameState board' _ _) = doMove state move
-    hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
+    when (me == White) $ hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
     when (me == White) $ hPutStrLn stderr . printBoard $ board'
     loopGame newState table me)
 

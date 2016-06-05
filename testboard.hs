@@ -199,7 +199,7 @@ testMove17 = TestCase $ assertEqual "test piece jump left - black" gameState' (d
 testMove18 :: Test
 testMove18 = TestCase $ assertEqual "test piece jump right - black" gameState' (doMove gameState $ JumpMove (getBoardFields [23, 16]))
    where
-    board = Board {wp = mergeBoardFields [28, 18, 7, 20], bp = mergeBoardFields [6, 23], k = mergeBoardFields [24, 7]} 
+    board = Board {wp = mergeBoardFields [28, 18, 7, 20], bp = mergeBoardFields [6, 23], k = mergeBoardFields [24, 7]}
     player = Black
     hash = hashBoard board player
     gameState = GameState board player hash

@@ -5,10 +5,9 @@ module Board where
 import           Data.Bits
 import           Data.List
 import           Data.List.Split
+import qualified Data.Vector.Unboxed as V
 import           Data.Word
 import           Masks
-import qualified Data.Vector.Unboxed as V
-import Debug.Trace
 
 
 
@@ -150,7 +149,7 @@ doMove (GameState board player hash) (NormalMove (from:to:[])) = GameState board
 doMove (GameState board player hash) (JumpMove jump) = GameState result (getNextPlayer player) hash''
   where
     opponent = if player == White then bp board else wp board
-    (killedPieces, hash') = doJump' board opponent hash jump 
+    (killedPieces, hash') = doJump' board opponent hash jump
     from = head jump
     to = last jump
 
@@ -162,7 +161,7 @@ doMove (GameState board player hash) (JumpMove jump) = GameState result (getNext
     kings' = if isKing board from then movePiece kings from to else promotePiece to player kings
     result = Board {wp = whitePieces', bp = blackPieces', k=kings'}
     hash'' = ((hash' `xor` flipPlayerHash) `xor` (hashFunction from board)) `xor` (hashFunction to result)
-    
+
 doMove g _ = g
 
 doJump' :: Board -> Word64 -> Word64 -> Path -> (Word64, Word64)
@@ -210,12 +209,12 @@ getMoveDirection source destination
 ---------------------- display -------------------------
 
 initialBoard :: Board
-initialBoard =
-  let
-    white = mergeBoardFields [1..12]
-    black = mergeBoardFields [21..32]
-    kings = 0
-  in Board {wp = white, bp = black, k = kings}
+initialBoard = Board {wp = 26431362958336, bp = 9113164688392192, k = 0}
+  -- let
+  --   white = mergeBoardFields [1..12]
+  --   black = mergeBoardFields [21..32]
+  --   kings = 0
+  -- in Board {wp = white, bp = black, k = kings}
 
 initialGameState :: GameState
 initialGameState = GameState initialBoard White (hashBoard initialBoard White)

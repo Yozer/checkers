@@ -1,10 +1,9 @@
 module Eval where
 
-import Board
-import Masks
-import Data.Bits
-import Data.Word
-import Debug.Trace
+import           Board
+import           Data.Bits
+import           Data.Word
+import           Masks
 
 leftEdge :: Word64
 leftEdge = mergeBoardFields [1,9,17,25]
@@ -26,26 +25,6 @@ topBoard = mergeBoardFields [26,27,28,21,22,23,18,19,20]
 maxEval :: Int
 maxEval = 40001
 
---- WEIGHTS
-
-
--- pieceWeight :: Float
--- pieceWeight = 5
-
--- kingWeight :: Float
--- kingWeight = 17.5
-
-
--- oppositeAreaWeight :: Float
--- oppositeAreaWeight = 2
-
--- protectFromKingLineWeight :: Float
--- protectFromKingLineWeight = 0.5
-
--- piecesOnEdgeWeight :: Float
--- piecesOnEdgeWeight = 2
-
---- END OF WEIGHTS
 
 lazy = 64
 maskEdges :: Word64
@@ -57,14 +36,14 @@ maskTop =  mergeBoardFields [21..32]
 maskBottom =  mergeBoardFields [1..12]
 mask7th = mergeBoardFields [25..28]
 
-evaluate :: Board -> Player -> Int -> Int -> Int 
+evaluate :: Board -> Player -> Int -> Int -> Int
 evaluate board player alpha beta
   | wp board == 0 = f $ -maxEval
-  | bp board == 0 = f $ maxEval 
+  | bp board == 0 = f $ maxEval
   | otherwise = f result
   where
 
-    notKings = complement $ k board
+    --notKings = complement $ k board
 
     wpp = whitePieces board
     bpp = blackPieces board
@@ -110,23 +89,9 @@ evaluate board player alpha beta
 
     -- endgame
     mul = if nWK == nBK && (nWhite+nBlack) < (nWK+nBK+2) then 8 else 2
-    result10 = if nWK * 2 >= nWhite || nBK*2 >= nBlack || (nBK + nWK) >= 4 
+    result10 = if nWK * 2 >= nWhite || nBK*2 >= nBlack || (nBK + nWK) >= 4
                then result9 - mul * (pieceCount (wpp .&. maskBottom) - pieceCount(wpp .&. maskTop) - pieceCount(bpp .&. maskTop) + pieceCount(bpp .&. maskBottom))
                else result9
-
-     --nBackB = (unsafeShiftR bpp 1) .&. 7
-    --result11 = if nWK*2 < nWhite then result10 - backRowGuardB ()
-    nAWK = nWK
-    nABK = nBK
-
-    -- active kings
-    --result11 = if wk .&. maskTrappedW /= 0 then
-
-
-    -- reward checkers what will king on next move
-    --(bNearKing, result11) = if (bpp .&. mask7th) /= 0 && canBlackCheckerMove (bpp .&. mask7th) then (1, result10 - 33 + 5) else (0, result10)
-
-
 
     f = filterByPlayer player
     result = if result4 + lazy < alpha || result4 - lazy > beta then result4 else result10

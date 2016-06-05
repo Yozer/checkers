@@ -1,14 +1,11 @@
-
-
 module Moves where
 
 import           Board
 import           Data.Bits
+import           Data.Function
+import           Data.List
 import           Data.Word
 import           Masks
-import Data.List
-import Data.Function
-import           Control.Parallel.Strategies
 
 ----------- PUBLIC METHODS ------------
 
@@ -38,7 +35,7 @@ getJumps board player
   | otherwise = getBlackJumpsList board
 
 
--- METHODS -- 
+-- METHODS --
 
 
 getWhiteMovesList :: Board -> MovesList -- return list of moves
@@ -206,7 +203,7 @@ getJumpsListRecur board empt jumpers opponent
 
     pieceIndex = s $ getIndex jumpers
     jumpers' = jumpers `xor` pieceIndex
-    jumpList = if isKing board pieceIndex 
+    jumpList = if isKing board pieceIndex
               then getJumpsListKings empt opponent pieceIndex
               else getJumpsListPieces empt opponent pieceIndex
 
@@ -221,13 +218,13 @@ getJumpsListPieces empt opponent piece =
     rightUp = upRight (upRight piece .&. opponent) .&. empt
     rightDown = downRight (downRight piece .&. opponent) .&. empt
     leftDown = downLeft (downLeft piece .&. opponent) .&. empt
-    
+
 
     newEmpty = empt .|. piece
 
     leftUpNewOpponent = removePieceByIndex opponent (downRight leftUp)
     rightUpNewOpponent = removePieceByIndex opponent (downLeft rightUp)
-    rightDownNewOpponent = removePieceByIndex opponent (upLeft rightDown) 
+    rightDownNewOpponent = removePieceByIndex opponent (upLeft rightDown)
     leftDownNewOpponent = removePieceByIndex opponent (upRight leftDown)
 
     recurLeftUp = if leftUp == 0 then [] else getJumpsListPieces newEmpty leftUpNewOpponent leftUp
@@ -239,8 +236,8 @@ getJumpsListPieces empt opponent piece =
     recurRightUp' = if rightUp /= 0 && null recurRightUp then [[piece, rightUp]] else map (piece:) recurRightUp
     recurRightDown' = if rightDown /= 0 && null recurRightDown  then [[piece, rightDown]] else map (piece:) recurRightDown
     recurLeftDown' = if leftDown /= 0 && null recurLeftDown  then [[piece, leftDown]] else map (piece:) recurLeftDown
-  in 
-     if leftUp == 0 && rightUp == 0 && rightDown == 0 && leftDown == 0 then []  
+  in
+     if leftUp == 0 && rightUp == 0 && rightDown == 0 && leftDown == 0 then []
      else recurLeftUp' ++ recurRightUp' ++ recurRightDown' ++ recurLeftDown'
 
 
