@@ -3,7 +3,6 @@ module TestBoard where
 import           Board
 import           Data.Bits
 import           Masks
-import           Moves
 import           Test.HUnit
 
 

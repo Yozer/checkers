@@ -1,94 +1,118 @@
+{-# LANGUAGE BangPatterns #-}
+
 module Main where
 
 import           Ai
 import           Board
+import           Control.Monad
+import           Data.List
+import           Data.Maybe
 import           Masks
 import           Moves
-import Data.List.Split
-import Data.List
-import Table
+import           System.Environment
+import           System.IO
+import           Table
+import           Text.ParserCombinators.Parsec
+import           Text.ParserCombinators.Parsec.Number
+
+printMove :: MoveHolder -> String
+printMove (JumpMove x) = printPath x "x"
+printMove (NormalMove x) = printPath x "-"
+printMove _ = "None"
+
+printPath :: Path -> String -> String
+printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
+
+data PDN =   Move (Int,Int) -- pozycja startowa i koncowa
+           | Kill [Int]  -- pozycja startowa to glowa, pozniej kolejne pozycje
+           deriving(Show)
+
+
+matchMove :: [MoveHolder] -> PDN -> MoveHolder
+matchMove actions (Move (from, to)) = matchMove' actions [from, to]
+matchMove actions (Kill x) = matchMove' actions x
+
+matchMove' :: [MoveHolder] -> [Int] -> MoveHolder
+matchMove' actions path
+  | null matchedActions = None
+  | otherwise = if null matchedActions then None else head matchedActions
+  where
+    matchedActions = filter (isMoveMatching path) actions
+
+isMoveMatching :: [Int] -> MoveHolder -> Bool
+isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
+isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
+isMoveMatching _ _ = False
+
+
+
+parsePos :: Parser Int
+parsePos = do
+            x <- int
+            if x<1 || x>32 then
+              unexpected "Tylko liczby od 1-32"
+            else
+              return x
+
+parseMove = do
+            x1 <- parsePos
+            char '-'
+            x2 <- parsePos
+            eof
+            return $ Move (x1,x2)
+
+parseKill = do
+            x1 <- sepBy parsePos (char 'x')
+            eof
+            case x1 of
+              [] -> unexpected "cos musi byc"
+              _  -> return $ Kill x1
+
+parsePDN =  try parseMove <|> try parseKill
+
+
+readMove :: [MoveHolder] -> IO MoveHolder
+readMove actions = do
+  !line <- getLine
+  return $ case parse parsePDN "sPDN err" line of
+                  Right m -> matchMove actions m
+                  Left _ -> None
+
+--txtFile = "program1.txt"
+
+loopGame :: GameState -> TTableRef -> Player -> IO ()
+loopGame state@(GameState board player _) table me = do
+  let possibleActions = getActions board player
+
+  AlphaResult _ !move <- if player == me then iterativeDeepening state table
+                             else (do
+                                      -- hPutStrLn stderr "Possible actions"
+                                      -- when (me == White) $ mapM_ (hPutStrLn stderr . printMove) possibleActions
+                                      !x <- readMove possibleActions
+                                      return $ AlphaResult 0 x)
+
+  when (move /= None) (do
+    when (player == me) . putStrLn . printMove $ move
+    let newState@(GameState board' _ _) = doMove state move
+    when (me == White) $ hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
+    when (me == White) $ hPutStrLn stderr . printBoard $ board'
+    loopGame newState table me)
+
+  when (move == None) $ hPutStrLn stderr $ show player ++ ": None move!!!!"
+
 
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
+  hSetBuffering stderr NoBuffering
   table <- allocate
-  (if me == White then loopWhite else loopBlack) (initialGameState me) table
-
-printMove :: MoveHolder -> IO ()
-printMove (JumpMove x) = printPath x "x"
-printMove (NormalMove x) = printPath x "-"
-printMove _ = undefined
-
-printPath :: Path -> String -> IO()
-printPath path deli = putStrLn . intercalate deli . map show $ map rfield path
-
-
-matchMove :: [MoveHolder] -> Int -> Int -> MoveHolder
-matchMove actions from to = head . filter (isMoveMatching from to) $ actions
-
-isMoveMatching :: Int -> Int -> MoveHolder -> Bool
-isMoveMatching from to (NormalMove x) = isMoveMatching' from to x
-isMoveMatching from to (JumpMove x) = isMoveMatching' from to x
-isMoveMatching _ _ _ = False
-isMoveMatching' :: Int -> Int -> Path -> Bool
-isMoveMatching' from to path = head path' == (fromIntegral from) && last path' == (fromIntegral to)
-  where
-    path' = map rfield path
-
-
-me = White
-opponent = Black
-
-loopWhite :: GameState -> TTableRef -> IO ()
-loopWhite gameState table = do
-
-  (value, move) <- iterativeDeepening gameState table
-  let GameState board player hash = doMove gameState move
-
-  putStrLn $ "After computer: " ++ (show value)
-  printBoard board
-  printMove move
-
-  let possibleActions = getActions board opponent
-  putStrLn "Possible moves:"
-  mapM_ printMove possibleActions
-
-  [from, to] <- splitOn " " <$> getLine
-
-  let from' = read from::Int
-  let to' = read to::Int
-
-  let blackMove = matchMove possibleActions from' to'
-
-  let GameState board' player' hash' = doMove (GameState board player hash) blackMove
-  putStrLn "After player:"
-  printBoard board'
-  loopWhite (GameState board' player' hash') table
-
-
-
-loopBlack :: GameState -> TTableRef -> IO ()
-loopBlack (GameState board player hash) table = do
-
-  let possibleActions = getActions board opponent
-  putStrLn "Possible moves:"
-  mapM_ printMove possibleActions
-
-  [from, to] <- splitOn " " <$> getLine
-
-  let from' = read from::Int
-  let to' = read to::Int
-
-  let blackMove = matchMove possibleActions from' to'
-  let GameState board' player' hash' = doMove (GameState board player hash) blackMove
-
-  putStrLn "After player:"
-  printBoard board'
-
-  (value, move) <- iterativeDeepening (GameState board' player' hash') table
-  let GameState board'' player' hash'' = doMove (GameState board' player' hash') move
-
-  putStrLn $ "After computer: " ++ (show value)
-  printBoard board''
-  printMove move
-  loopBlack (GameState board'' player' hash'') table
+  args <- getArgs
+  -- progName <- getProgName
+  --mapM_ putStrLn args
+  -- putStrLn progName
+  --let args = ["w"] -- do zakomentowania w programmie
+  case listToMaybe args of
+    Just "b" -> loopGame initialGameState table Black
+    Just "w" -> loopGame initialGameState table White
+    Nothing -> loopGame initialGameState table White

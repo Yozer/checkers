@@ -2,104 +2,131 @@
 module Ai where
 
 import           Board
-import           Control.Parallel.Strategies
+import           Data.Int
+import           Data.IORef
+import           Data.Word
+import           Debug.Trace
 import           Eval
 import           Moves
-import Table
-import Data.Word
-import Debug.Trace
+import           System.Clock
+import           Table
 
-type AlphaResult = (Int, MoveHolder)
+type Counter = IORef Int
 
+data AlphaResult = AlphaResult Int MoveHolder | Timeout deriving(Eq, Show)
+
+
+takeValue (AlphaResult value _) = value
+takeMove (AlphaResult _ move) = move
+
+getCurrentTime :: IO Int64
+getCurrentTime = fmap sec (getTime Realtime)
 
 maxDeep :: Int
-maxDeep = 18
+maxDeep = 80
+
+maxTime :: Int64
+maxTime = 3*60
 
 iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
-iterativeDeepening gameState v = iterativeDeepening' gameState v 1 0
+iterativeDeepening gameState v = do
+  time <- getCurrentTime
+  counter <- newIORef 0
+  !result <- iterativeDeepening' gameState v 6 0 time counter $ AlphaResult (-maxEval) None
+  counter' <- readIORef counter
+  trace ("Nodes visited: " ++ (show counter')) $ return result
 
-iterativeDeepening' :: GameState -> TTableRef -> Int -> Int -> IO AlphaResult
-iterativeDeepening' gameState v depth firstGuess = do
-  result@(firstGuess', _) <- trace (show depth) $ mtdf gameState v firstGuess depth
-  if depth == maxDeep then return result
-  else iterativeDeepening' gameState v (depth + 1) firstGuess' 
+iterativeDeepening' :: GameState -> TTableRef -> Int -> Int -> Int64 -> Counter -> AlphaResult -> IO AlphaResult
+iterativeDeepening' gameState v depth firstGuess time counter previousResult = do
+  !result <- mtdf gameState v firstGuess depth time counter
+  trace ("Depth: " ++ (show depth) ++ " result:" ++ (show result)) $ if result == Timeout then return previousResult
+  else if depth >= maxDeep then return result
+  else iterativeDeepening' gameState v (depth + 2) (takeValue result) time counter result
 
-mtdf :: GameState -> TTableRef -> Int -> Int -> IO AlphaResult
-mtdf gameState v first depth = mtdf' gameState v g upperBound lowerBound depth
+mtdf :: GameState -> TTableRef -> Int -> Int -> Int64 -> Counter -> IO AlphaResult
+mtdf gameState v first = mtdf' gameState v g upperBound lowerBound
   where
-    g = (first, None)
+    g = AlphaResult first None
     upperBound = maxEval
     lowerBound = -maxEval
 
-mtdf' :: GameState -> TTableRef -> AlphaResult -> Int -> Int -> Int -> IO AlphaResult
-mtdf' gameState v result@(g, _) upperBound lowerBound depth = do
+mtdf' :: GameState -> TTableRef -> AlphaResult -> Int -> Int -> Int -> Int64 -> Counter -> IO AlphaResult
+mtdf' gameState v result@(AlphaResult g _) upperBound lowerBound depth time counter = do
   let beta = if lowerBound == g then g + 1 else g
-  result'@(g', _) <- alphaBeta' gameState depth v (beta - 1) beta
-  let upperBound' = if g' < beta then g' else upperBound
-  let lowerBound' = if g' >= beta then g' else lowerBound
-
   if lowerBound >= upperBound then return result
-  else mtdf' gameState v result' upperBound' lowerBound' depth
+  else do
+    !alphaResult <- alphaBeta' gameState depth (beta - 1) beta v time counter
+    if alphaResult == Timeout then return Timeout
+    else do
+      let g' = takeValue alphaResult
+      let upperBound' =  if g' < beta then g' else upperBound
+      let lowerBound' = if g' >= beta then g' else lowerBound
+      mtdf' gameState v alphaResult upperBound' lowerBound' depth time counter
 
 
---alphaBeta :: GameState -> TTableRef -> IO AlphaResult
---alphaBeta gameState v = alphaBeta' gameState maxDeep v (-maxEval - 1) maxEval
+alphaBeta' :: GameState -> Int -> Int -> Int ->  TTableRef -> Int64 -> Counter -> IO AlphaResult
+alphaBeta' gameState@(GameState board player hash) depth alpha beta v time counter = do
+  counter' <- readIORef counter
+
+  currentTime <- if counter' `mod` 50000 == 0 then getCurrentTime else return time
+
+  if currentTime - time > maxTime then return Timeout
+  else do
+    writeIORef counter (counter' + 1)
+    ttEntry <- readTT hash v
+
+    let isOldDepth = tDepth ttEntry < depth
+    let alpha' = if ttEntry == TTNone || isOldDepth then alpha else max alpha $ if tFlag ttEntry == LowerBound then tValue ttEntry else alpha
+    let beta' =  if ttEntry == TTNone || isOldDepth then beta else min beta $ if tFlag ttEntry == UpperBound then tValue ttEntry else beta
+    let bestMoveForNode = if ttEntry /= TTNone then tMove ttEntry else None
+    let tmpActions = getActions board player
+    let actions = if bestMoveForNode /= None then bestMoveForNode:tmpActions else tmpActions
+
+    if ttEntry /= TTNone && not isOldDepth && (tFlag ttEntry == Exact || alpha' >= beta') then return $ AlphaResult (tValue ttEntry) (tMove ttEntry)
+    else if isGameEnded board then return $ AlphaResult (evaluate board player) None
+    else if depth == 0 then return $ quiesceBoard gameState
+    else if null actions then return $ AlphaResult (-maxEval) None
+    else makeMoves actions gameState depth (AlphaResult (-maxEval - 1) None) alpha' hash alpha' beta' v time counter
 
 
+makeMoves :: [MoveHolder] -> GameState -> Int -> AlphaResult -> Int -> Word64 -> Int -> Int -> TTableRef -> Int64 -> Counter -> IO AlphaResult
+makeMoves (move:restMoves) gameState depth (AlphaResult best bestMove) alphaOrigin sourceHash alpha beta v time counter = do
+  let nextState = doMove gameState move
+  alphaResult <- alphaBeta' nextState (depth-1) (-beta) (-alpha) v time counter
 
-alphaBeta' :: GameState -> Int -> TTableRef -> Int -> Int -> IO AlphaResult
-alphaBeta' (GameState board player hash) depth v = makeMoves actions (GameState board player hash) depth v (-maxEval - 1, None)
+  if alphaResult == Timeout then return alphaResult
+  else do
+    let value = negate . takeValue $ alphaResult
+    let bestMove' = if value > best then move else bestMove
+    let best' = max value best
+    let alpha' = max alpha value
+    let pruning = alpha' >= beta
+
+    let flag = if best' <= alphaOrigin then UpperBound
+               else if best' >= beta then LowerBound
+               else Exact
+    let tt = TTEntry {tValue = best', tFlag = flag, tDepth = depth, tHash = sourceHash, tMove = bestMove'}
+
+    if null restMoves || pruning then (do
+      writeTT sourceHash tt v
+      return $ AlphaResult best' bestMove'
+      )
+    else makeMoves restMoves gameState depth (AlphaResult best' bestMove') alphaOrigin sourceHash alpha' beta v time counter
+
+quiesceBoard :: GameState -> AlphaResult
+quiesceBoard gameState@(GameState board player _)
+  | null jumpMoves = AlphaResult (evaluate board player) None
+  | otherwise = quiesceResult
   where
-    actions = getActions board player
+    jumpMoves = map JumpMove . filterJumps $ getJumps board player
+    quiesceResult = quiesceMoves jumpMoves gameState $ AlphaResult (-maxEval -1) None
 
-
-
-makeMoves :: [MoveHolder] -> GameState -> Int -> TTableRef -> AlphaResult -> Int -> Int -> IO AlphaResult
-makeMoves (m:restMoves) (GameState board player hash) depth v (best, move) alpha beta = do
-  let nextState = doMove (GameState board player hash) m
-  res <- alphaBeta'' nextState (depth-1) (-beta) (-alpha) v
-  let value = negate res
-  let (best', move') = if value > best then (value, m) else (best, move)
-  let alpha' = max value alpha
-  let pruning = alpha' >= beta
-
-  if null restMoves || pruning then return (best', move')
-  else makeMoves restMoves (GameState board player hash) depth v (best', move') alpha' beta
-
-
-alphaBeta'' :: GameState -> Int -> Int -> Int ->  TTableRef -> IO Int
-alphaBeta'' (GameState board player hash) depth alpha beta v = do
-  ttEntry <- readTT hash depth v
-
-  let alpha' = if ttEntry == TTNone then alpha else max alpha $ if tFlag ttEntry == LowerBound then tValue ttEntry else alpha
-  let beta' =  if ttEntry == TTNone then beta else min beta $ if tFlag ttEntry == UpperBound then tValue ttEntry else beta
-
-  if ttEntry /= TTNone && (tFlag ttEntry == Exact || alpha' >= beta') then return $ tValue ttEntry
-  else if depth == 0 || isGameEnded board then return $ evaluate board player (maxDeep - depth) alpha' beta'
-  else if null actions then return $ -maxEval
-  else makeMoves' actions (GameState board player hash) depth (-maxEval) alpha' hash alpha' beta' v
+quiesceMoves:: [MoveHolder] -> GameState -> AlphaResult -> AlphaResult
+quiesceMoves (jump:restJumps) gameState (AlphaResult best _)
+  | null restJumps = AlphaResult best' None
+  | otherwise = quiesceMoves restJumps gameState $ AlphaResult best' None
   where
-    actions = getActions board player
-    
-
-
-
-makeMoves' :: [MoveHolder] -> GameState -> Int -> Int -> Int -> Word64 -> Int -> Int -> TTableRef -> IO Int
-makeMoves' (move:restMoves) (GameState board player hash) depth best alphaOrigin sourceHash alpha beta v = do
-  let nextState = doMove (GameState board player hash) move
-  res <- alphaBeta'' nextState (depth-1) (-beta) (-alpha) v
-  let value = negate res
-  let best' = max value best
-  let alpha' = max alpha value
-  let pruning = alpha' >= beta
-
-  let flag = if best' <= alphaOrigin then UpperBound
-             else if best' >= beta then LowerBound
-             else Exact
-  let tt = TTEntry {tValue = best', tFlag = flag, tDepth = depth, tHash = sourceHash}
-
-  if null restMoves || pruning then (do 
-    writeTT sourceHash tt v
-    return best'
-    ) 
-  else makeMoves' restMoves (GameState board player hash) depth best' alphaOrigin sourceHash alpha' beta v
+    newState = doMove gameState jump
+    result = quiesceBoard newState
+    value = negate . takeValue $ result
+    best' = max value best

@@ -1,52 +1,52 @@
 module Table where
-import Board
-import qualified Data.Vector.Mutable as VM
-import qualified            Data.Vector as V
-import Data.Word
-import Control.Monad.ST
-import Data.IORef
-import Control.Concurrent.MVar
+import           Board
+import           Control.Concurrent.MVar
+import           Control.Monad.ST
+import qualified Data.Vector.Mutable     as VM
+import           Data.Word
+
+-- CONFIGURATION
+size :: Int
+size = 5000000
 
 data TTFlag = Exact | LowerBound | UpperBound deriving (Show, Eq)
 
 data TTEntry = TTEntry {
-  tValue :: {-# UNPACK #-} !Int,
-  tFlag :: {-# UNPACK #-} !TTFlag,
-  tDepth  :: {-# UNPACK #-} !Int,
-  tHash :: {-# UNPACK #-} !Word64
-} | TTNone deriving (Show, Eq) 
-
-size :: Int
-size = 3000000
+  tValue :: Int,
+  tFlag  :: TTFlag,
+  tDepth :: Int,
+  tHash  :: Word64,
+  tMove  :: MoveHolder
+} | TTNone deriving (Show, Eq)
 
 type TTable = VM.MVector RealWorld TTEntry
-type TTableRef = IORef TTable
+type TTableRef = MVar TTable
+
+clear :: TTableRef -> IO ()
+clear ref = do
+  v <- takeMVar ref
+  VM.set v TTNone
+  putMVar ref v
 
 allocate :: IO TTableRef
 allocate = do
   v <- VM.replicate size TTNone
-  newIORef v
+  newMVar  v
 
-
--- clear :: TTableRef -> IO TTableRef
--- clear ref = runST $ do
---   v <- readIORef ref
---   vector <- V.unsafeThaw v
---   VM.clear vector
---   VM.set vector TTNone
---   newV <- V.unsafeFreeze vector 
-
-readTT :: Word64 -> Int -> TTableRef -> IO TTEntry
-readTT hash depth ref = do
-  v <- readIORef ref
+readTT :: Word64 -> TTableRef -> IO TTEntry
+readTT hash ref = do
+  v <- takeMVar ref
   value <- VM.read v (indexFromHash hash)
-  if value == TTNone || tHash value /= hash || tDepth value < depth then return TTNone else return value
+  putMVar ref v
+  if value == TTNone || tHash value /= hash then return TTNone
+  else return value
 
-writeTT :: Word64 -> TTEntry -> TTableRef -> IO Bool
+
+writeTT :: Word64 -> TTEntry -> TTableRef -> IO ()
 writeTT hash entry ref = do
-  v <- readIORef ref
+  v <- takeMVar ref
   VM.write v (indexFromHash hash) entry
-  return True
+  putMVar ref v
 
 indexFromHash :: Word64 -> Int
-indexFromHash h = (fromIntegral $ h `mod` (fromIntegral size))
+indexFromHash h = fromIntegral $ h `mod` fromIntegral size

@@ -1,11 +1,11 @@
 module TestMovesListWhite where
 
 import           Board
+import           Data.List
+import           Data.Word
 import           Masks
 import           Moves
 import           Test.HUnit
-import Data.List
-import Data.Word
 
 assertBoolLists :: [[Word64]] -> [[Word64]] -> Bool
 assertBoolLists x y = sort x == sort y
@@ -81,30 +81,30 @@ testJumpKingsList4 = TestCase $ assertBool "test jump king list 4"  $ assertBool
 
 testJumpKingsList5 :: Test
 testJumpKingsList5 = TestCase $ assertBool "test jump king list 5"  $ assertBoolLists (getWhiteJumpsList Board {wp = field 12, bp = mergeBoardFields [15, 23, 22, 21, 13, 6, 14], k = field 12})
-        (map getBoardFields [[12, 19, 28], [12, 19, 32], [12, 19, 26, 17, 10, 3], [12, 19, 26, 17, 10, 19, 28], [12, 19, 26, 17, 10, 19, 32], 
+        (map getBoardFields [[12, 19, 28], [12, 19, 32], [12, 19, 26, 17, 10, 3], [12, 19, 26, 17, 10, 19, 28], [12, 19, 26, 17, 10, 19, 32],
         [12, 19, 10, 3], [12, 19, 10, 17, 26, 19, 28], [12, 19, 10, 17, 30, 20],[12, 19, 10, 17, 30, 16], [12, 19, 10, 17, 26, 19, 32]])
 
 
 testJumpKingsList6 :: Test
 testJumpKingsList6 = TestCase $ assertBool "test jump king list 6"  $ assertBoolLists (getWhiteJumpsList Board {wp = field 14, bp = mergeBoardFields [19 , 28], k = field 14})
-        (map getBoardFields [[14,23,32]])   
+        (map getBoardFields [[14,23,32]])
 
 
 ------- KINGS AND PIECES JUMPS -------------
 
 testJumpKingsPiecesList1 :: Test
 testJumpKingsPiecesList1 = TestCase $ assertBool "test jump king pieces list 1"  $ assertBoolLists (getWhiteJumpsList Board {wp = mergeBoardFields [1, 6] , bp = field 10 , k = field 1})
-        (map getBoardFields [[6,13], [1,19],[1,14], [1,23], [1,28], [1,32]])  
+        (map getBoardFields [[6,13], [1,19],[1,14], [1,23], [1,28], [1,32]])
 
 testJumpKingsPiecesList2 :: Test
 testJumpKingsPiecesList2 = TestCase $ assertBool "test jump king pieces list 2"  $ assertBoolLists (getWhiteJumpsList Board {wp = mergeBoardFields [1, 6] , bp = mergeBoardFields [10, 14] , k = field 1})
-        (map getBoardFields [[6,13]])  
+        (map getBoardFields [[6,13]])
 
 
 ------------ BROKEN TEST ------------------
 testJumpKingsPiecesList3 :: Test
 testJumpKingsPiecesList3 = TestCase $ assertBool "test jump king pieces list 3"  $ assertBoolLists (getWhiteJumpsList Board {wp = mergeBoardFields [1, 6] , bp = mergeBoardFields [0, 23] , k = field 1})
-        (map getBoardFields [[6,13],[1,28], [1,32]])  
+        (map getBoardFields [[6,13],[1,28], [1,32]])
 
 getTestList :: [Test]
 getTestList = [testMoveList1, testMoveList2, testMoveList3, testMoveList4, testMoveList5, testMoveList6,

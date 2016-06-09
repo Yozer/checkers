@@ -14,15 +14,15 @@ testMovers2 :: Test
 testMovers2 = TestCase $ assertEqual "Test white movers for initial board" (getWhiteMovers initialBoard) (mergeBoardFields [9, 10, 11, 12])
 
 testMovers3 :: Test
-testMovers3 = TestCase $ assertEqual "Test white movers 3" 
+testMovers3 = TestCase $ assertEqual "Test white movers 3"
                         (getWhiteMovers Board {wp = mergeBoardFields [25, 1, 24], bp = mergeBoardFields [9, 5, 2], k = field 1}) (mergeBoardFields [25, 24])
 
 testMovers4 :: Test
-testMovers4 = TestCase $ assertEqual "Test white movers 4" 
+testMovers4 = TestCase $ assertEqual "Test white movers 4"
                         (getWhiteMovers Board {wp = mergeBoardFields [4, 30, 25, 1, 24], bp = mergeBoardFields [9, 10, 2], k = field 1}) (mergeBoardFields [25, 24, 1, 4])
 
 testMovers5 :: Test
-testMovers5 = TestCase $ assertEqual "Test white movers 5" 
+testMovers5 = TestCase $ assertEqual "Test white movers 5"
                         (getWhiteMovers Board {wp = mergeBoardFields [4, 29, 25, 1, 24], bp = mergeBoardFields [9, 10, 2], k = field 1}) (mergeBoardFields [24, 1, 4])
 
 testJumpers1 :: Test
@@ -57,8 +57,8 @@ testJumpers10 :: Test
 testJumpers10 = TestCase $ assertEqual "Test white jumpers 10" (getWhiteJumpers Board {bp = mergeBoardFields [13, 21, 19, 28], wp = mergeBoardFields [10, 14], k = mergeBoardFields [10, 14]}) (mergeBoardFields [14, 10])
 
 testJumpers11 :: Test
-testJumpers11 = TestCase $ assertEqual "Test white jumpers 11" (getWhiteJumpers Board {bp = mergeBoardFields [7, 5, 12, 13, 21, 19, 28], 
-                                                                                       wp = mergeBoardFields [11, 2, 10, 14 , 29], 
+testJumpers11 = TestCase $ assertEqual "Test white jumpers 11" (getWhiteJumpers Board {bp = mergeBoardFields [7, 5, 12, 13, 21, 19, 28],
+                                                                                       wp = mergeBoardFields [11, 2, 10, 14 , 29],
                                                                                        k = mergeBoardFields [10, 14, 29]}) (mergeBoardFields [14, 10, 29, 2, 11])
 
 testJumpers12 :: Test

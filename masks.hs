@@ -1,9 +1,9 @@
 module Masks where
 
 import           Data.Bits
+import           Data.List
 import qualified Data.Vector.Unboxed as V
 import           Data.Word
-import Data.List
 
 
 invalid :: Word64
@@ -19,6 +19,10 @@ mapBoard i = V.fromList [invalid, field 29, invalid, field 30, invalid, field 31
              invalid, field 5, invalid, field 6, invalid, field 7, invalid, field 8,
              field 1, invalid, field 2, invalid, field 3, invalid, field 4, invalid] V.! i
 
+
+
+reverseBoardIndexing :: Int -> Int
+reverseBoardIndexing i = V.fromList [-1, 29, 30, 31, 32, 25, 26, 27, 28, 21, 22, 23, 24, 17, 18, 19, 20, 13, 14, 15, 16, 9, 10, 11, 12, 5, 6, 7, 8, 1, 2, 3, 4] V.! i
 
 kBoard :: Int -> Int -- board mapping
 kBoard i = V.fromList [30,33,33,33,33,34,34,33,34,36,36,35,36,38,38,34,34,38,38,36,35,36,36,34,33,34,34,33,33,33,33,30] V.! (i - 1)
