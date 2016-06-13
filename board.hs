@@ -25,7 +25,7 @@ data GameState = GameState Board Player Word64 deriving (Eq, Show)
 type Path = [Word64]
 type MovesList = [Path]
 
-data MoveHolder =  None | JumpMove Path | NormalMove Path deriving(Show, Eq, Ord)
+data MoveHolder = Invalid | None | JumpMove Path | NormalMove Path deriving(Show, Eq, Ord)
 
 ------ HELPERS
 

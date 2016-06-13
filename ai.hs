@@ -26,7 +26,7 @@ maxDeep :: Int
 maxDeep = 80
 
 maxTime :: Int64
-maxTime = 3*60
+maxTime = 10
 
 iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
 iterativeDeepening gameState v = do

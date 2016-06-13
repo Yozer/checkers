@@ -14,6 +14,9 @@ import           System.IO
 import           Table
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Number
+import qualified Data.Vector.Unboxed as V
+import Eval
+import Debug.Trace
 
 printMove :: MoveHolder -> String
 printMove (JumpMove x) = printPath x "x"
@@ -21,7 +24,7 @@ printMove (NormalMove x) = printPath x "-"
 printMove _ = "None"
 
 printPath :: Path -> String -> String
-printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
+printPath path deli = intercalate deli . map (show  . rfield) $ path
 
 data PDN =   Move (Int,Int) -- pozycja startowa i koncowa
            | Kill [Int]  -- pozycja startowa to glowa, pozniej kolejne pozycje
@@ -34,14 +37,15 @@ matchMove actions (Kill x) = matchMove' actions x
 
 matchMove' :: [MoveHolder] -> [Int] -> MoveHolder
 matchMove' actions path
-  | null matchedActions = None
-  | otherwise = if null matchedActions then None else head matchedActions
+  | null actions = None
+  | null matchedActions = Invalid
+  | otherwise = head matchedActions
   where
     matchedActions = filter (isMoveMatching path) actions
 
 isMoveMatching :: [Int] -> MoveHolder -> Bool
-isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
-isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
+isMoveMatching path (NormalMove x) = (getBoardFields path) == x
+isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
 isMoveMatching _ _ = False
 
 
@@ -91,14 +95,17 @@ loopGame state@(GameState board player _) table me = do
                                       !x <- readMove possibleActions
                                       return $ AlphaResult 0 x)
 
-  when (move /= None) (do
-    when (player == me) . putStrLn . printMove $ move
-    let newState@(GameState board' _ _) = doMove state move
-    when (me == White) $ hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
-    when (me == White) $ hPutStrLn stderr . printBoard $ board'
-    loopGame newState table me)
+  if move == Invalid then trace "Invalid move" $ loopGame state table me
+  else do
+    when (move /= None) (do
+      when (player == me) . putStrLn . printMove $ move
+      let newState@(GameState board' _ _) = doMove state move
+      hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
+      hPutStrLn stderr . printBoard $ board'
+      loopGame newState table me)
 
-  when (move == None) $ hPutStrLn stderr $ show player ++ ": None move!!!!"
+    when (move == None) $ if not . null $ possibleActions then putStrLn "Timeout" else putStrLn (show player ++ " lost")
+  --when (move == None) $ hPutStrLn stderr $ show player ++ ": None move!!!!"
 
 
 
@@ -108,6 +115,8 @@ main = do
   hSetBuffering stderr NoBuffering
   table <- allocate
   args <- getArgs
+  --let weights = V.fromList . read $ args !! 1
+  --print weights
   -- progName <- getProgName
   --mapM_ putStrLn args
   -- putStrLn progName
