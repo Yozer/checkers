@@ -1,70 +1,66 @@
+{-# LANGUAGE ForeignFunctionInterface #-}
 module Eval where
 
 import           Board
 import           Data.Bits
 import           Data.Word
 import           Masks
+import Foreign
+import Foreign.C
 
-leftEdge :: Word64
-leftEdge = mergeBoardFields [1,9,17,25]
-rightEdge :: Word64
-rightEdge = mergeBoardFields [8,16,24,32]
-bottomEdge :: Word64
-bottomEdge = mergeBoardFields [1..4]
-topEdge :: Word64
-topEdge =mergeBoardFields [29..32]
-edges :: Word64
-edges = leftEdge .|. rightEdge
+mate = 10000 :: Int
+occupiet = 16 :: Int
 
-bottomBoard :: Word64
-bottomBoard = mergeBoardFields [5,6,7,10,11,12,13,14,15]
+f = 0 :: Int
+white = 1 :: Int
+black = 2 :: Int
+man = 4 :: Int
+king = 8 :: Int
 
-topBoard :: Word64
-topBoard = mergeBoardFields [26,27,28,21,22,23,18,19,20]
-
-maxEval :: Int
-maxEval = 400001
-
--- WEIGHTS
-
-pieceWeight = 10
-kingWeight = 35
-oppositeAreaWeight = 4
-protectFromKingLineWeight = 1
-piecesOnEdgeWeight = 4
-
-
---- END OF WEIGHTS
-
-
-evaluate :: Board -> Player -> Int
-evaluate board player
-  | wp board == 0 = f (result - 25000)
-  | bp board == 0 = f (result + 25000)
-  | otherwise = f result
+evaluate :: Board -> Player -> Int -> Int -> Int -> IO Int
+evaluate board player alpha beta depth = do
+  b <- convertBoard board
+  (CInt result) <- c_eval b color (getUint alpha) (getUint beta) blackPiecesN whitePiecesN blackKingsN whiteKingsN (getUint depth)
+  return . fromIntegral $ result
   where
-    whites = wp board
-    blacks = bp board
-    whitePieces = notKings .&. wp board
-    blackPieces = notKings .&. bp board
-
-    notKings = complement $ k board
-    wKingsCount = pieceCount . whiteKings $ board
-    bKingsCount = pieceCount . blackKings $ board
-    wPiecesCount = pieceCount $ notKings .&. wp board
-    bPiecesCount = pieceCount $ notKings .&. bp board
-    resultType = kingWeight * (wKingsCount - bKingsCount) + pieceWeight * (wPiecesCount - bPiecesCount)
-
-    resultLocation = ((oppositeAreaWeight*) . pieceCount $ (whitePieces .&. topBoard)) + ((protectFromKingLineWeight*) . pieceCount $ (whitePieces .&. bottomEdge)) +  ((piecesOnEdgeWeight*) . pieceCount $ (whites .&. edges)) -
-                     ((oppositeAreaWeight*) . pieceCount $ (blackPieces .&. bottomBoard)) - ((protectFromKingLineWeight*) . pieceCount $ (blackPieces .&. topEdge)) -  ((piecesOnEdgeWeight*) . pieceCount $  (blacks .&. edges))
+    whitePiecesN = getUint $ popCount . whitePieces $ board
+    blackPiecesN = getUint $ popCount . blackPieces $ board
+    whiteKingsN = getUint $ popCount . whiteKings $ board
+    blackKingsN = getUint $ popCount . blackKings $ board
+    color = getUint $ if player == White then white else black
 
 
-    f = filterByPlayer player
-    result = resultLocation + resultType
+getUint = CInt . fromIntegral
 
-filterByPlayer :: Player -> Int -> Int
-filterByPlayer p x = if p == White then x else -x
+mapper  = [-1,-1,-1, -1,-1,
+                     32,31,30,29, -1,
+                     28,27,26,25,
+                     24,23,22,21, -1,
+                     20,19,18,17,
+                     16, 15, 14, 13, -1,
+                     12, 11, 10, 9, 
+                     8,7,6,5, -1,
+                     4,3,2,1
+                     ] 
 
+convertBoard :: Board -> IO (Ptr CInt)
+convertBoard board = newArray board'
+  where
+    board' = map (\x -> getUint $ mapPiece x board) mapper
 
-pieceCount :: (Word64 -> Int)
-pieceCount = popCount
+mapPiece :: Int -> Board -> Int
+mapPiece index board
+  | index == -1 = occupiet
+  | isKing && isWhite = white .|. king
+  | isKing && isBlack = black .|. king
+  | isWhite = white .|. man
+  | isBlack = black .|. man
+  | otherwise = f
+  where
+    x = s . fromIntegral $ index
+    isKing = k board .&. x /= 0
+    isWhite = wp board .&. x /= 0
+    isBlack = bp board .&. x /= 0
+
+-- board -> color -> alpha -> beta -> blackPieces -> whitePieces -> blackKings -> whiteKings -> depth -> eval
+foreign import ccall "evaluation" c_eval :: Ptr CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> IO CInt

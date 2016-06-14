@@ -23,7 +23,7 @@ getCurrentTime :: IO Int64
 getCurrentTime = fmap sec (getTime Realtime)
 
 maxDeep :: Int
-maxDeep = 80
+maxDeep = 2
 
 maxTime :: Int64
 maxTime = 10
@@ -32,7 +32,7 @@ iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
 iterativeDeepening gameState v = do
   time <- getCurrentTime
   counter <- newIORef 0
-  !result <- iterativeDeepening' gameState v 6 0 time counter $ AlphaResult (-maxEval) None
+  !result <- iterativeDeepening' gameState v 2 0 time counter $ AlphaResult (-mate) None
   counter' <- readIORef counter
   trace ("Nodes visited: " ++ (show counter')) $ return result
 
@@ -47,15 +47,15 @@ mtdf :: GameState -> TTableRef -> Int -> Int -> Int64 -> Counter -> IO AlphaResu
 mtdf gameState v first = mtdf' gameState v g upperBound lowerBound
   where
     g = AlphaResult first None
-    upperBound = maxEval
-    lowerBound = -maxEval
+    upperBound = mate
+    lowerBound = -mate
 
 mtdf' :: GameState -> TTableRef -> AlphaResult -> Int -> Int -> Int -> Int64 -> Counter -> IO AlphaResult
 mtdf' gameState v result@(AlphaResult g _) upperBound lowerBound depth time counter = do
   let beta = if lowerBound == g then g + 1 else g
   if lowerBound >= upperBound then return result
   else do
-    !alphaResult <- alphaBeta' gameState depth (beta - 1) beta v time counter
+    !alphaResult <- alphaBeta' gameState depth 0 (beta - 1) beta v time counter
     if alphaResult == Timeout then return Timeout
     else do
       let g' = takeValue alphaResult
@@ -64,8 +64,8 @@ mtdf' gameState v result@(AlphaResult g _) upperBound lowerBound depth time coun
       mtdf' gameState v alphaResult upperBound' lowerBound' depth time counter
 
 
-alphaBeta' :: GameState -> Int -> Int -> Int ->  TTableRef -> Int64 -> Counter -> IO AlphaResult
-alphaBeta' gameState@(GameState board player hash) depth alpha beta v time counter = do
+alphaBeta' :: GameState -> Int -> Int -> Int -> Int -> TTableRef -> Int64 -> Counter -> IO AlphaResult
+alphaBeta' gameState@(GameState board player hash) depth realDepth alpha beta v time counter = do
   counter' <- readIORef counter
 
   currentTime <- if counter' `mod` 50000 == 0 then getCurrentTime else return time
@@ -83,16 +83,18 @@ alphaBeta' gameState@(GameState board player hash) depth alpha beta v time count
     let actions = if bestMoveForNode /= None then bestMoveForNode:tmpActions else tmpActions
 
     if ttEntry /= TTNone && not isOldDepth && (tFlag ttEntry == Exact || alpha' >= beta') then return $ AlphaResult (tValue ttEntry) (tMove ttEntry)
-    else if isGameEnded board then return $ AlphaResult (evaluate board player) None
-    else if depth == 0 then return $ quiesceBoard gameState
-    else if null actions then return $ AlphaResult (-maxEval) None
-    else makeMoves actions gameState depth (AlphaResult (-maxEval - 1) None) alpha' hash alpha' beta' v time counter
+    else if isGameEnded board then do 
+      evalResult <- evaluate board player alpha' beta' realDepth
+      return $ AlphaResult evalResult None
+    else if depth == 0 then quiesceBoard gameState alpha' beta' realDepth
+    else if null actions then return $ AlphaResult (realDepth - mate) None
+    else makeMoves actions gameState depth realDepth (AlphaResult (-mate - 1) None) alpha' hash alpha' beta' v time counter
 
 
-makeMoves :: [MoveHolder] -> GameState -> Int -> AlphaResult -> Int -> Word64 -> Int -> Int -> TTableRef -> Int64 -> Counter -> IO AlphaResult
-makeMoves (move:restMoves) gameState depth (AlphaResult best bestMove) alphaOrigin sourceHash alpha beta v time counter = do
+makeMoves :: [MoveHolder] -> GameState -> Int -> Int -> AlphaResult -> Int -> Word64 -> Int -> Int -> TTableRef -> Int64 -> Counter -> IO AlphaResult
+makeMoves (move:restMoves) gameState depth realDepth (AlphaResult best bestMove) alphaOrigin sourceHash alpha beta v time counter = do
   let nextState = doMove gameState move
-  alphaResult <- alphaBeta' nextState (depth-1) (-beta) (-alpha) v time counter
+  alphaResult <- alphaBeta' nextState (depth-1) (realDepth+1) (-beta) (-alpha) v time counter
 
   if alphaResult == Timeout then return alphaResult
   else do
@@ -111,22 +113,28 @@ makeMoves (move:restMoves) gameState depth (AlphaResult best bestMove) alphaOrig
       writeTT sourceHash tt v
       return $ AlphaResult best' bestMove'
       )
-    else makeMoves restMoves gameState depth (AlphaResult best' bestMove') alphaOrigin sourceHash alpha' beta v time counter
+    else makeMoves restMoves gameState depth realDepth (AlphaResult best' bestMove') alphaOrigin sourceHash alpha' beta v time counter
 
-quiesceBoard :: GameState -> AlphaResult
-quiesceBoard gameState@(GameState board player _)
-  | null jumpMoves = AlphaResult (evaluate board player) None
-  | otherwise = quiesceResult
+quiesceBoard :: GameState -> Int -> Int -> Int -> IO AlphaResult
+quiesceBoard gameState@(GameState board player _) alpha beta depth =
+  if null jumpMoves then do
+    evalResult <- evaluate board player alpha beta depth
+    return $ AlphaResult evalResult None
+  else 
+    quiesceMoves jumpMoves gameState alpha beta depth $ AlphaResult ((-mate) -1) None
   where
     jumpMoves = map JumpMove . filterJumps $ getJumps board player
-    quiesceResult = quiesceMoves jumpMoves gameState $ AlphaResult (-maxEval -1) None
 
-quiesceMoves:: [MoveHolder] -> GameState -> AlphaResult -> AlphaResult
-quiesceMoves (jump:restJumps) gameState (AlphaResult best _)
-  | null restJumps = AlphaResult best' None
-  | otherwise = quiesceMoves restJumps gameState $ AlphaResult best' None
+quiesceMoves:: [MoveHolder] -> GameState ->  Int -> Int -> Int -> AlphaResult -> IO AlphaResult
+quiesceMoves (jump:restJumps) gameState alpha beta depth (AlphaResult best _) = do
+  result <- quiesceBoard newState alpha beta (depth + 1)
+  let value = negate . takeValue $ result
+  let best' = max value best
+
+  if null restJumps then return $ AlphaResult best' None
+  else quiesceMoves restJumps gameState alpha beta depth $ AlphaResult best' None
   where
     newState = doMove gameState jump
-    result = quiesceBoard newState
-    value = negate . takeValue $ result
-    best' = max value best
+    
+    
+    
