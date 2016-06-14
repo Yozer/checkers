@@ -23,7 +23,7 @@ getCurrentTime :: IO Int64
 getCurrentTime = fmap sec (getTime Realtime)
 
 maxDeep :: Int
-maxDeep = 2
+maxDeep = 88
 
 maxTime :: Int64
 maxTime = 10
@@ -32,7 +32,7 @@ iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
 iterativeDeepening gameState v = do
   time <- getCurrentTime
   counter <- newIORef 0
-  !result <- iterativeDeepening' gameState v 2 0 time counter $ AlphaResult (-mate) None
+  !result <- iterativeDeepening' gameState v 6 0 time counter $ AlphaResult (-mate) None
   counter' <- readIORef counter
   trace ("Nodes visited: " ++ (show counter')) $ return result
 

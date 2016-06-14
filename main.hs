@@ -25,8 +25,8 @@ printMove _ = "None"
 
 
 printPath :: Path -> String -> String
---printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
-printPath path deli = intercalate deli . map (show  . rfield) $ path
+printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
+-- printPath path deli = intercalate deli . map (show  . rfield) $ path
 
 data PDN =   Move (Int,Int) -- pozycja startowa i koncowa
            | Kill [Int]  -- pozycja startowa to glowa, pozniej kolejne pozycje
@@ -46,10 +46,10 @@ matchMove' actions path
     matchedActions = filter (isMoveMatching path) actions
 
 isMoveMatching :: [Int] -> MoveHolder -> Bool
--- isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
--- isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
-isMoveMatching path (NormalMove x) = (getBoardFields path) == x
-isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
+isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
+isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
+-- isMoveMatching path (NormalMove x) = (getBoardFields path) == x
+-- isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
 isMoveMatching _ _ = False
 
 
