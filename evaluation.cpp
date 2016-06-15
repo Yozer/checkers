@@ -16,33 +16,6 @@
 #define MIDGAME 1
 #define ENDGAME 2
 #define ull unsigned long long
-#define LONG_EDGE 9241421688590303745ULL
-
-//31,27,24,20,13,9,6,2
-#define PST_king_1 45123957204583680ULL
-//32,29,28,26,25,23,21,12,10,8,7,5,4,1
-#define PST_king_2 9241422471801078273ULL
-//22,19,18,15,14,11
-#define PST_king_3 240987930624ULL
-
-//28,27,26,20,19,18,12,11,10
-#define Lattice2 18102720552763392ULL
-//23,22,21,15,14,13,7,6,5
-#define LatticeMinus2 35356876079616ULL
-
-#define ROW_1 16843009ULL
-#define ROW_2 8623620608ULL
-#define ROW_3 17247241216ULL
-#define ROW_4 8830587502592ULL
-#define ROW_5 17661175005184ULL
-#define ROW_6 9042521602654208ULL
-#define ROW_7 18085043205308416ULL
-#define ROW_8 9259542121117908992ULL
-
-//5,13,21,29,6,14,22,30,7,15,23,31,8,16,24,32
-#define VERTICAL_TOP_EDGES 9268593481931686400ULL
-//1,9,17,25,2,10,18,26,3,11,19,27,4,12,20,28
-#define VERTICAL_NOTTOP_EDGES 18102721644397825ULL
 
 #define F_5 9223372036854775808ULL
 #define F_6 36028797018963968ULL
@@ -77,6 +50,34 @@
 #define F_39 256ULL
 #define F_40 1ULL
 
+#define LONG_EDGE 9241421688590303745ULL
+
+//31,27,24,20,13,9,6,2
+#define PST_king_1 (F_6 | F_11 | F_14 | F_19 | F_26 | F_31 | F_34 | F_39)
+//32,29,28,26,25,23,21,12,10,8,7,5,4,1
+#define PST_king_2 (F_5 | F_8 | F_10 | F_12 | F_13 | F_15 | F_17 | F_28 | F_30 | F_32 | F_33 | F_35 | F_37 | F_40)
+//22,19,18,15,14,11
+#define PST_king_3 (F_16 | F_20 | F_21 | F_29 | F_24 | F_25)
+
+//28,27,26,20,19,18,12,11,10
+#define Lattice2 18102720552763392ULL
+//23,22,21,15,14,13,7,6,5
+#define LatticeMinus2 35356876079616ULL
+
+#define ROW_1 (F_37 | F_38 | F_39 | F_40)
+#define ROW_2 (F_32 | F_33 | F_34 | F_35)
+#define ROW_3 (F_28 | F_29 | F_30 | F_31)
+#define ROW_4 (F_23 | F_24 | F_25 | F_26)
+#define ROW_5 (F_19 | F_20 | F_21 | F_22)
+#define ROW_6 (F_14 | F_15 | F_16 | F_17)
+#define ROW_7 (F_10 | F_11 | F_12 | F_13)
+#define ROW_8 (F_5 | F_6 | F_7 | F_8)
+
+//5,13,21,29,6,14,22,30,7,15,23,31,8,16,24,32
+#define VERTICAL_TOP_EDGES 9268593481931686400ULL
+//1,9,17,25,2,10,18,26,3,11,19,27,4,12,20,28
+#define VERTICAL_NOTTOP_EDGES 18102721644397825ULL
+
 static __inline int get_phase(const int mat) {
 	if (mat > 19) { // 20-24
 		return OPENING;
@@ -91,7 +92,27 @@ static __inline int get_phase(const int mat) {
 
 }
 
+static __inline int is_good_piece(int eval, ull pieces, ull empty, ull sq1, ull sq2, int color) {
+	if (pieces & sq1) {
+		if (pieces & sq2)
+			eval += (color == 1 ? -1 : 1);
+		else
+			if (empty & sq2)
+				eval -= (color == 1 ? -1 : 1);
+	}
+	
+	return eval;
+}
+
 static __inline int abs(int a) {return a > 0 ? a : -a; }
+static __inline int center_control(int eval, ull pieces, ull empty, ull sq1, ull sq2, ull sq3, ull sq4, ull sq5, int color) {
+	if (pieces & sq1) {
+		eval = is_good_piece(eval + (color == 1 ? -1 : 1), pieces, empty, sq2, sq3, color);
+		eval = is_good_piece(eval, pieces, empty, sq4, sq5, color);
+	}
+	return eval;
+}
+
 
 int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdepth)
 {
@@ -107,6 +128,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	int nbk = __builtin_popcountll(blackKings);
 	int nwm = __builtin_popcountll(whitePieces);
 	int nwk = __builtin_popcountll(whiteKings);
+	
 	
 	if (bp == 0)  return (color == BLACK ? (realdepth - MATE) : MATE - realdepth);
 	if (wp == 0) return(color == WHITE ? (realdepth - MATE) : MATE - realdepth);
@@ -136,7 +158,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		// surely winning advantage:
 		if (White == 1 && nwm == 1 && Black >= 4) eval = eval + (eval >> 1);
 		if (Black == 1 && nbm == 1 && White >= 4) eval = eval + (eval >> 1);
-
+		
 		// scaling down
 		if (nbk > 0 && eval < 0) eval = eval >> 1;
 		if (nwk > 0 && eval > 0) eval = eval >> 1;
@@ -148,8 +170,8 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		if (nwk == 1 && WGL && !BGL && Black <= 3)
 			if (White <= 2 || eval > -500)
 				return (0);
-
 	
+		
 		int w_lattice = 0;
 		int b_lattice = 0;
 		
@@ -160,24 +182,26 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		eval -= 2*__builtin_popcountll(PST_king_2 & whiteKings);
 		eval -= 3*__builtin_popcountll(PST_king_3 & whiteKings);
 		
+		
 		eval += 2*__builtin_popcountll(ROW_7 & blackPieces);
-		eval += 4*__builtin_popcountll(ROW_6 & blackPieces);
+		eval += 4*__builtin_popcountll((ROW_6 | F_31 | F_32) & blackPieces);
 		eval += 6*__builtin_popcountll(ROW_5 & blackPieces);
 		eval += 8*__builtin_popcountll(ROW_4 & blackPieces);
-		eval += 10*__builtin_popcountll(ROW_3 & blackPieces);
-		eval += 12*__builtin_popcountll(ROW_2 & blackPieces);
+		eval += 10*__builtin_popcountll((ROW_3 ^ F_31) & blackPieces);
+		eval += 12*__builtin_popcountll((ROW_2 ^ F_32) & blackPieces);
 		
-		eval -= 12*__builtin_popcountll(ROW_7 & whitePieces);
-		eval -= 10*__builtin_popcountll(ROW_6 & whitePieces);
+		eval -= 12*__builtin_popcountll((ROW_7 ^ F_13) & whitePieces);
+		eval -= 10*__builtin_popcountll((ROW_6 ^ F_14) & whitePieces);
 		eval -= 8*__builtin_popcountll(ROW_5 & whitePieces);
 		eval -= 6*__builtin_popcountll(ROW_4 & whitePieces);
-		eval -= 4*__builtin_popcountll(ROW_3 & whitePieces);
+		eval -= 4*__builtin_popcountll((ROW_3 | F_13 | F_14) & whitePieces);
 		eval -= 2*__builtin_popcountll(ROW_2 & whitePieces);
 		
 		b_lattice += 2*__builtin_popcountll(Lattice2 & blackPieces);
 		b_lattice += -2*__builtin_popcountll(LatticeMinus2 & blackPieces);
 		w_lattice += 2*__builtin_popcountll(Lattice2 & whitePieces);
 		w_lattice += -2*__builtin_popcountll(LatticeMinus2 & whitePieces);
+		
 		
 		w_lattice = abs(w_lattice);
 		if (w_lattice) eval += w_lattice - 2;
@@ -220,6 +244,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		}
 	}  // ENDGAME
 
+	
 	v1 = 100 * nbm + 250 * nbk;
 	v2 = 100 * nwm + 250 * nwk;
 	eval = v1 - v2;
@@ -258,12 +283,13 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	if (allPieces & F_38) code += 4; // Golden checker
 	if (allPieces & F_39) code += 2;
 	if (allPieces & F_40) code++;
-	if (whitePieces * F_32) code += 16;
+	if (whitePieces & F_32) code += 16;
 	backrank -= br[code];
 	int brv = (phase == OPENING ? 3 : 1);  // multiplier for back rank -- back rank value
 	eval += brv*backrank;
-
+	
 	if (nbm == nwm) {
+		
 		/* balance                */
 		/* how equally the pieces are distributed on the left and right sides of the board */
 
@@ -272,10 +298,10 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		int nwml, nwmr; // number white men left - right
 						// left flank
 		code = 0;
-		code += __builtin_popcountll(whitePieces & 9286466472350056448ULL);
-		code += 256*__builtin_popcountll(blackPieces & 9286466472350056448ULL);
-		code += 16*__builtin_popcountll(whiteKings & 9286466472350056448ULL);
-		code += 4096*__builtin_popcountll(blackKings & 9286466472350056448ULL);
+		code += __builtin_popcountll(whitePieces & (F_5 | F_14 | F_23 | F_32 | F_10 | F_19 | F_28 | F_37 | F_6 | F_15 | F_24 | F_33));
+		code += 256*__builtin_popcountll(blackPieces & (F_5 | F_14 | F_23 | F_32 | F_10 | F_19 | F_28 | F_37 | F_6 | F_15 | F_24 | F_33));
+		code += 16*__builtin_popcountll(whiteKings & (F_5 | F_14 | F_23 | F_32 | F_10 | F_19 | F_28 | F_37 | F_6 | F_15 | F_24 | F_33));
+		code += 4096*__builtin_popcountll(blackKings & (F_5 | F_14 | F_23 | F_32 | F_10 | F_19 | F_28 | F_37 | F_6 | F_15 | F_24 | F_33));
 		
 		nwml = code & 15;
 		nbml = (code >> 8) & 15;
@@ -284,10 +310,10 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		if (nbml == 0) eval -= 10;
 		// right flank
 		code = 0;
-		code += __builtin_popcountll(whitePieces & 826514605825ULL);
-		code += 256*__builtin_popcountll(blackPieces & 826514605825ULL);
-		code += 16*__builtin_popcountll(whiteKings & 826514605825ULL);
-		code += 4096*__builtin_popcountll(blackKings & 826514605825ULL);
+		code += __builtin_popcountll(whitePieces & (F_12 | F_21 | F_30 | F_39 | F_8 | F_17 | F_26 | F_35 | F_13 | F_22 | F_31 | F_40));
+		code += 256*__builtin_popcountll(blackPieces & (F_12 | F_21 | F_30 | F_39 | F_8 | F_17 | F_26 | F_35 | F_13 | F_22 | F_31 | F_40));
+		code += 16*__builtin_popcountll(whiteKings & (F_12 | F_21 | F_30 | F_39 | F_8 | F_17 | F_26 | F_35 | F_13 | F_22 | F_31 | F_40));
+		code += 4096*__builtin_popcountll(blackKings & (F_12 | F_21 | F_30 | F_39 | F_8 | F_17 | F_26 | F_35 | F_13 | F_22 | F_31 | F_40));
 		nwmr = code & 15;
 		nbmr = (code >> 8) & 15;
 		// empty right flank ?
@@ -305,16 +331,15 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		if (nwml + nwmr == nwm) eval += 4;
 
 	}
-
+	
 	// developed single corner
 	const int devsinglecornerval = 8; // developed single corner value
-	if (empty & (F_5 | F_10) == F_5 | F_10) {
+	if ((empty & (F_5 | F_10)) == (F_5 | F_10)) {
 		eval += devsinglecornerval;
-		if (empty & F_6)
-			eval -= 5;
+		if (empty & F_6) eval -= 5; 
 	}
 
-	if (empty & (F_40 | F_35) == F_40 | F_35) {
+	if ((empty & (F_40 | F_35)) == (F_40 | F_35)) {
 		eval -= devsinglecornerval;
 		if (empty & F_39)
 			eval += 5;
@@ -322,276 +347,65 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 
 	/* center control */
 	// for black color
-	// f4
-	if (bp & F_21) {
-		eval++;
-		if (bp & F_16)
-			if (bp & F_11)
-				eval++;
-			else
-				if (empty & F_11)
-					eval--;
 
-		if (bp & F_17)
-			if (bp & F_13)
-				eval++;
-			else
-				if (empty & F_13)
-					eval--;
-	}
+	eval = center_control(eval, bp, empty, F_21, F_6, F_11, F_17, F_13, BLACK);
+	eval = center_control(eval, bp, empty, F_20, F_15, F_10, F_16, F_12, BLACK);
+	eval = center_control(eval, bp, empty, F_16, F_11, F_6, F_12, F_8, BLACK);
 
-	// d4
-	if (bp & F_20) {
-		eval++;
-		if (bp & F_15)
-			if (bp & F_10)
-				eval++;
-			else
-				if (empty & F_10)
-					eval--;
-
-		if (bp & F_16)
-			if (bp & F_12)
-				eval++;
-			else
-				if (empty & F_12)
-					eval--;
+	if ((bp & F_24) != 0 && (empty & (F_28 | F_29 | F_39)) == (F_28 | F_29 | F_39)) {
+		eval = is_good_piece(eval + 2, bp, empty, F_19, F_14, BLACK);
+		eval = is_good_piece(eval, bp, empty, F_20, F_16, BLACK);
 	}
 	
-	// e3
-	if (bp & F_16) {
-		eval++;
-		if (bp & F_11)
-			if (bp & F_6)
-				eval++;
-			else
-				if (empty & F_6)
-					eval--;
-
-		if (bp & F_12)
-			if (bp & F_8)
-				eval++;
-			else
-				if (empty & F_8)
-					eval--;
-	}
-
-	// c5
-	if (bp & F_24 != 0 && empty & (F_28 | F_29 | F_39) == (F_28 | F_29 | F_39)) {
-		eval += 2;
-		if (bp & F_19)
-			if (bp & F_14)
-				eval++;
-			else
-				if (empty & F_14)
-					eval--;
-
-		if (bp & F_20)
-			if (bp & F_16)
-				eval++;
-			else
-				if (empty & F_16)
-					eval--;
-	}
-	
-
 	// d6
-	if (bp & F_29 != 0 && empty & F_38 != 0) {
-		eval += 2;
-		if (bp & F_24)
-			if (bp & F_19)
-				eval++;
-			else
-				if (empty & F_19)
-					eval--;
-
-		if (bp & F_25)
-			if (bp & F_21)
-				eval++;
-			else
-				if (empty & F_21)
-					eval--;
+	if ((bp & F_29) != 0 && (empty & F_38) != 0) {
+		eval = is_good_piece(eval + 2, bp, empty, F_24, F_19, BLACK);
+		eval = is_good_piece(eval, bp, empty, F_25, F_21, BLACK);
 	}
 	
 	// f6
-	if (bp & F_30 != 0 && empty & F_39 != 0) {
-		eval += 2;
-		if (bp & F_25)
-			if (bp & F_20)
-				eval++;
-			else
-				if (empty & F_20)
-					eval--;
-
-		if (bp & F_26)
-			if (bp & F_22)
-				eval++;
-			else
-				if (empty & F_22)
-					eval--;
+	if ((bp & F_30) != 0 && (empty & F_39) != 0) {
+		eval = is_good_piece(eval + 2, bp, empty, F_25, F_20, BLACK);
+		eval = is_good_piece(eval, bp, empty, F_26, F_22, BLACK);
 	}
 	
 	// for white color
 	// c5
-	if (wp & F_24) {
-		eval--;
-		if (wp & F_28)
-			if (wp & F_32)
-				eval--;
-			else
-				if (empty & F_32)
-					eval++;
-
-		if (wp & F_29)
-			if (wp & F_34)
-				eval--;
-			else
-				if (empty & F_34)
-					eval++;
+	eval = center_control(eval, wp, empty, F_24, F_28, F_32, F_29, F_34, WHITE);
+	eval = center_control(eval, wp, empty, F_29, F_33, F_37, F_34, F_39, WHITE);
+	eval = center_control(eval, wp, empty, F_25, F_29, F_33, F_30, F_35, WHITE);
+	
+	if (((wp & F_15) != 0) && ((empty & F_6) != 0)) {
+		eval = is_good_piece(eval - 2, wp, empty, F_19, F_23, WHITE);
+		eval = is_good_piece(eval, wp, empty, F_20, F_25, WHITE);
 	}
-
-	// d6
-	if (wp & F_29) {
-		eval--;
-		if (wp & F_33)
-			if (wp & F_37)
-				eval--;
-			else
-				if (empty & F_37)
-					eval++;
-
-		if (wp & F_34)
-			if (wp & F_39)
-				eval--;
-			else
-				if (empty & F_39)
-					eval++;
+	if ((wp & F_16) != 0 && ((empty & F_7) != 0)) {
+		eval = is_good_piece(eval - 2, wp, empty, F_20, F_24, WHITE);
+		eval = is_good_piece(eval, wp, empty, F_21, F_26, WHITE);
 	}
-	// e5
-	if (wp & F_25) {
-		eval--;
-		if (wp & F_29)
-			if (wp & F_33)
-				eval--;
-			else
-				if (empty & F_33)
-					eval++;
-
-		if (wp & F_30)
-			if (wp & F_35)
-				eval--;
-			else
-				if (empty & F_35)
-					eval++;
+	if (((wp & F_21) != 0) && ((empty & (F_16 | F_17 | F_6)) == (F_16 | F_17 | F_6))) {
+		eval = is_good_piece(eval - 2, wp, empty, F_25, F_29, WHITE);
+		eval = is_good_piece(eval, wp, empty, F_26, F_31, WHITE);
 	}
-	// c3
-	if ((wp & F_15 != 0) && (empty & F_6 != 0)) {
-		eval -= 2;
-		if (wp & F_19)
-			if (wp & F_23)
-				eval--;
-			else
-				if (empty & F_23)
-					eval++;
-
-		if (wp & F_20)
-			if (wp & F_25)
-				eval--;
-			else
-				if (empty & F_25)
-					eval++;
-	}
-// e3
-	if ((wp & F_16) != 0 && (empty & F_7 != 0)) {
-		eval -= 2;
-		if (wp & F_20)
-			if (wp & F_24)
-				eval--;
-			else
-				if (empty & F_24)
-					eval++;
-
-		if (wp & F_21)
-			if (wp & F_26)
-				eval--;
-			else
-				if (empty & F_26)
-					eval++;
-	}
-	// f4
-	if ((wp & F_21 != 0) && (empty & (F_16 | F_17 | F_6) == F_16 | F_17 | F_6)) {
-		eval -= 2;
-		if (wp & F_25)
-			if (wp & F_29)
-				eval--;
-			else
-				if (empty & F_29)
-					eval++;
-
-		if (wp & F_26)
-			if (wp & F_31)
-				eval--;
-			else
-				if (empty & F_31)
-					eval++;
-	}
+	
 	/*  edge squares         */
 
-	// h2
-	if (bp & F_13)
-		eval--;
-	// h4
-	if (bp & F_22)
-		eval--;
-	// a3
-	if (bp & F_14)
-		eval--;
-	// a5
-	if (bp & F_23)
-		eval++;
-	// h6
-	if (bp & F_31 != 0 && empty & F_39 != 0)
-		eval++;
-	// a7
-	if (bp & F_32)
-		eval++;
+	eval -= __builtin_popcountll(bp & (F_13 | F_22 | F_14));
+	eval += __builtin_popcountll(bp & (F_23 | F_32));
+	if ((bp & F_31) != 0 && (empty & F_39) != 0) eval++;
+	
 	// for white color
-	// a7
-	if (wp & F_32)
-		eval++;
-	// a5
-	if (wp & F_23)
-		eval++;
-	// h6
-	if (wp & F_31)
-		eval++;
-	// a3
-	if (wp & F_14 != 0 && empty & F_6 != 0)
+	eval += __builtin_popcountll(wp & (F_32 | F_23 | F_31));
+	eval -= __builtin_popcountll(wp & (F_22 | F_13));
+	if ((wp & F_14) != 0 && (empty & F_6) != 0)
 		eval--;
-	// h4
-	if (wp & F_22)
-		eval--;
-	// h2
-	if (wp & F_13)
-		eval--;
+	
 	// e5
 	if (notEmpty & F_25) {
 		if (bp & F_25)
 			if (phase != OPENING) {
-				eval++;
-				if (bp & F_20)
-					if (bp & F_15)
-						eval++;
-					else
-						if (empty & F_15)
-							eval--;
-
-				if (bp & F_21)
-					if (bp & F_17)
-						eval++;
-					else
-						if (empty & F_17)
-							eval--;
+				eval = is_good_piece(eval + 1, bp, empty, F_20, F_15, BLACK);
+				eval = is_good_piece(eval, bp, empty, F_21, F_17, BLACK);
 			}
 			else
 				eval -= 4;
@@ -600,20 +414,8 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	if (notEmpty & F_20) {
 		if (wp & F_20)
 			if (phase != OPENING) {
-				eval--;
-				if (wp & F_24)
-					if (wp & F_28)
-						eval--;
-					else
-						if (empty & F_28)
-							eval++;
-
-				if (wp & F_25)
-					if (wp & F_30)
-						eval--;
-					else
-						if (empty & F_30)
-							eval++;
+				eval = is_good_piece(eval - 1, wp, empty, F_24, F_28, WHITE);
+				eval = is_good_piece(eval, wp, empty, F_25, F_30, BLACK);
 			}
 			else
 				eval += 4;
@@ -623,7 +425,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	int p_bonus = (phase == OPENING ? 8 : 16); // promote in one bonus
 	eval += (color == BLACK ? p_bonus << 1 : p_bonus) * __builtin_popcountll((((ROW_1 & empty) << 1) & blackPieces) | ( ((ROW_1 & empty) << 9) & blackPieces));
 	eval -= (color == WHITE ? p_bonus << 1 : p_bonus) * __builtin_popcountll((((ROW_8 & empty) >> 1) & whitePieces) | ( ((ROW_8 & empty) >> 9) & whitePieces));
-
+	
 
 	int w_lattice = 4*__builtin_popcountll(Lattice2 & whitePieces);
 	int b_lattice = 4*__builtin_popcountll(Lattice2 & blackPieces);
