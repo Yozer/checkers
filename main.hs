@@ -17,6 +17,7 @@ import           Text.ParserCombinators.Parsec.Number
 import qualified Data.Vector.Unboxed as V
 import Eval
 import Debug.Trace
+import EvalLegacy
 
 printMove :: MoveHolder -> String
 printMove (JumpMove x) = printPath x "x"
@@ -25,8 +26,8 @@ printMove _ = "None"
 
 
 printPath :: Path -> String -> String
-printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
--- printPath path deli = intercalate deli . map (show  . rfield) $ path
+--printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
+printPath path deli = intercalate deli . map (show  . rfield) $ path
 
 data PDN =   Move (Int,Int) -- pozycja startowa i koncowa
            | Kill [Int]  -- pozycja startowa to glowa, pozniej kolejne pozycje
@@ -46,10 +47,10 @@ matchMove' actions path
     matchedActions = filter (isMoveMatching path) actions
 
 isMoveMatching :: [Int] -> MoveHolder -> Bool
-isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
-isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
--- isMoveMatching path (NormalMove x) = (getBoardFields path) == x
--- isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
+--isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
+--isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
+isMoveMatching path (NormalMove x) = (getBoardFields path) == x
+isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
 isMoveMatching _ _ = False
 
 
@@ -118,6 +119,27 @@ main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
   hSetBuffering stderr NoBuffering
+
+  res <- evaluate initialBoard White (-mate) mate 20
+  res1 <- evaluateL initialBoard White (-mate) mate 20
+  putStrLn $ (show res) ++ ":" ++ (show res1)
+
+  res <- evaluate Board {wp = 27021735203700736, bp = 8796663447552, k = 536870912} White (-mate) mate 20
+  res1 <- evaluateL Board {wp = 27021735203700736, bp = 8796663447552, k = 536870912} White (-mate) mate 20
+  putStrLn $ (show res) ++ ":" ++ (show res1)
+
+  res <- evaluate Board {wp = 35218900255232, bp = 36028797018963968, k = 33685504} White (-mate) mate 20
+  res1 <- evaluateL Board {wp = 35218900255232, bp = 36028797018963968, k = 33685504} White (-mate) mate 20
+  putStrLn $ (show res) ++ ":" ++ (show res1)
+
+  res <- evaluate Board {wp = 343597383680, bp = 9051352190156800, k = 35321811042304} White (-mate) mate 20
+  res1 <- evaluateL Board {wp = 343597383680, bp = 9051352190156800, k = 35321811042304} White (-mate) mate 20
+  putStrLn $ (show res) ++ ":" ++ (show res1)
+
+  res <- evaluate Board {wp = 16777216, bp = 18049583015788544, k = 18049583032565760} White (-mate) mate 20
+  res1 <- evaluateL Board {wp = 16777216, bp = 18049583015788544, k = 18049583032565760} White (-mate) mate 20
+  putStrLn $ (show res) ++ ":" ++ (show res1)
+
   table <- allocate
   args <- getArgs
   --let weights = V.fromList . read $ args !! 1

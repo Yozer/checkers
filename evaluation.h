@@ -1,4 +1,5 @@
 #define ull unsigned long long
+
 #ifdef __cplusplus
 extern "C" {
 #endif

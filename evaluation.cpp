@@ -621,9 +621,8 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 
 	// reward checkers that will king on the next move:
 	int p_bonus = (phase == OPENING ? 8 : 16); // promote in one bonus
-	// TODO, sprawdz czy moze byc faktycznie krolowka
-	//eval += (color == BLACK ? p_bonus << 1 : p_bonus) * __builtin_popcountll(ROW_2 & blackPieces);
-	//eval -= (color == WHITE ? p_bonus << 1 : p_bonus) * __builtin_popcountll(ROW_7 & whitePieces);
+	eval += (color == BLACK ? p_bonus << 1 : p_bonus) * __builtin_popcountll((((ROW_1 & empty) << 1) & blackPieces) | ( ((ROW_1 & empty) << 9) & blackPieces));
+	eval -= (color == WHITE ? p_bonus << 1 : p_bonus) * __builtin_popcountll((((ROW_8 & empty) >> 1) & whitePieces) | ( ((ROW_8 & empty) >> 9) & whitePieces));
 
 
 	int w_lattice = 4*__builtin_popcountll(Lattice2 & whitePieces);
