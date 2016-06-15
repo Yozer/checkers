@@ -101,7 +101,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 	int i, j;
 	int eval;
 	int v1, v2;
-	unsigned int phase = get_phase(nbm +nwm+nbk+nwk); // get game phase
+	unsigned int phase = get_phase(nbm + nwm + nwk + nbk); // get game phase
 
 	if (phase == ENDGAME) {
 		v1 = 100 * nbm + 300 * nbk;
@@ -131,7 +131,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		// surely winning advantage:
 		if (White == 1 && nwm == 1 && Black >= 4) eval = eval + (eval >> 1);
 		if (Black == 1 && nbm == 1 && White >= 4) eval = eval + (eval >> 1);
-		
 
 		// scaling down
 		if (nbk > 0 && eval < 0) eval = eval >> 1;
@@ -145,7 +144,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 			if (White <= 2 || eval > -500)
 				return (0);
 
-		
 		static int PST_king[41] = { 0,0,0,0,0,  // 0..4
 												 2,1,0,2,0, // 5..9
 												 2,1,2,2, // 10..13
@@ -189,10 +187,9 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 												  0,-2,-2,-2,0,  // 32 .. 36
 												  0,0,0,0                   // 37 .. 40
 		};
-		
+
 		int w_lattice = 0;
 		int b_lattice = 0;
-
 		for (i = 5; i <= 40; i++) {
 			if (b[i]) {
 				switch (b[i]) {
@@ -208,8 +205,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 				}
 			}
 		}
-		
-		
 		w_lattice = abs(w_lattice);
 		if (w_lattice) eval += w_lattice - 2;
 		b_lattice = abs(b_lattice);
@@ -262,7 +257,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 			return (-eval);
 		}
 	}  // ENDGAME
-	
 
 	v1 = 100 * nbm + 250 * nbk;
 	v2 = 100 * nwm + 250 * nwk;
@@ -283,9 +277,11 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 
 	// Lazy evaluation
 	// Early exit from evaluation  if eval already is extremely low or extremely high
-		int teval = (color == WHITE) ? -eval : eval;
-		if (teval - 64 >= beta) return teval;
-		if (teval + 64 <= alpha) return teval;
+
+	int teval = (color == WHITE) ? -eval : eval;
+	if (teval - 64 >= beta) return teval;
+	if (teval + 64 <= alpha) return teval;
+	
 	// back rank guard:
 	static int br[32] = { 0,-1,1,0,3,3,3,3,2,2,2,2,4,4,8,7,1,0,1,0,3,3,3,3,2,2,2,2,4,4,8,7 }; // back rank values
 	int code;
@@ -296,7 +292,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 	if (b[7] & MAN) code += 4; // Golden checker
 	if (b[8] & MAN) code += 8;
 	if (b[13] == BLK_MAN) code += 16;
-	
 	backrank = br[code];
 	code = 0;
 	if (b[37] & MAN) code += 8;
@@ -307,7 +302,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 	backrank -= br[code];
 	int brv = (phase == OPENING ? 3 : 1);  // multiplier for back rank -- back rank value
 	eval += brv*backrank;
-	
+
 	if (nbm == nwm) {
 		/* balance                */
 		/* how equally the pieces are distributed on the left and right sides of the board */
@@ -360,7 +355,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		// empty right flank ?
 		if (nwmr == 0) eval += 10;
 		if (nbmr == 0) eval -= 10;
-		
+
 		balance = abs(nbml - nbmr);
 		if (balance >= 2)
 			eval -= balance << 1;
@@ -372,12 +367,13 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		if (nwml + nwmr == nwm) eval += 4;
 
 	}
-	
+
 	// developed single corner
 	const int devsinglecornerval = 8; // developed single corner value
 	if (!b[5] && !b[10]) {
 		eval += devsinglecornerval;
-		if (!b[6]) eval -= 5;  
+		if (!b[6])
+			eval -= 5;
 	}
 
 	if (!b[40] && !b[35]) {
@@ -407,7 +403,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 						eval--;
 		}
 	}
-	//return eval;
+
 	// d4
 	if (b[20]) {
 		if ((b[20] & BLACK) != 0) {
@@ -507,7 +503,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 						eval--;
 		}
 	}
-
 	// for white color
 				   // c5
 	if (b[24]) {
@@ -624,7 +619,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 						eval++;
 		}
 	}
-	
+
 	/*  edge squares         */
 
 	// h2
@@ -688,7 +683,6 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		if ((b[13] & WHITE) != 0)
 			eval--;
 	}
-\
 	// e5
 	if (b[25]) {
 		if ((b[25] & BLACK) != 0)
@@ -747,7 +741,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 			if ((b[i] & MAN) != 0)
 				if (!b[i - 5] || !b[i - 4]) eval -= color == WHITE ? p_bonus << 1 : p_bonus;
 	}
-	
+
 	static int LatticeArray[] = { 0,0,0,0,0,  // 0 .. 4
 											 0,0,0,0,0,  // 5 .. 9
 											 4,4,4,0,     // 10 .. 13

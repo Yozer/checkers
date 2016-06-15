@@ -93,13 +93,13 @@ static __inline int get_phase(const int mat) {
 }
 
 static __inline int is_good_piece(int eval, ull pieces, ull empty, ull sq1, ull sq2, int color) {
-	if (pieces & sq1) {
+	if (pieces & sq1) 
 		if (pieces & sq2)
 			eval += (color == 1 ? -1 : 1);
 		else
 			if (empty & sq2)
 				eval -= (color == 1 ? -1 : 1);
-	}
+	
 	
 	return eval;
 }
@@ -137,7 +137,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	int eval;
 	int v1, v2;
 	unsigned int phase = get_phase(nbm + nwm + nbk + nwk); // get game phase
-
+	
 	if (phase == ENDGAME) {
 		v1 = 100 * nbm + 300 * nbk;
 		v2 = 100 * nwm + 300 * nwk;
@@ -148,28 +148,26 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		if (nbk > 0 && (White < (2 + nbk)) && (eval < 0)) return (0);
 		if (nwk > 0 && (Black < (2 + nwk)) && (eval > 0)) return (0);
 
-		int WGL = 0; // white king on a1-h8
-		int BGL = 0; // black king on a1-h8
-		if(allPieces & LONG_EDGE == 0) {
-			if(whiteKings & LONG_EDGE) WGL=1;
-			if(blackKings & LONG_EDGE) BGL=1;
+		bool WGL = false; // white king on a1-h8
+		bool BGL = false; // black king on a1-h8
+		if((allPieces & (F_5 | F_10 | F_15 | F_20 | F_25 | F_30 | F_35 | F_40)) == 0) {
+			if(whiteKings & (F_5 | F_10 | F_15 | F_20 | F_25 | F_30 | F_35 | F_40)) WGL=true;
+			if(blackKings & (F_5 | F_10 | F_15 | F_20 | F_25 | F_30 | F_35 | F_40)) BGL=true;
 		}
-
+		
 		// surely winning advantage:
-		if (White == 1 && nwm == 1 && Black >= 4) eval = eval + (eval >> 1);
-		if (Black == 1 && nbm == 1 && White >= 4) eval = eval + (eval >> 1);
+		if (White == 1 && nwm == 1 && Black >= 4) eval += (eval >> 1);
+		if (Black == 1 && nbm == 1 && White >= 4) eval += (eval >> 1);
 		
 		// scaling down
 		if (nbk > 0 && eval < 0) eval = eval >> 1;
 		if (nwk > 0 && eval > 0) eval = eval >> 1;
+		
+		if (nbk == 1 && BGL && !WGL && White <= 3 && (Black <= 2 || eval < 500))
+			return 0;
 
-		if (nbk == 1 && BGL && !WGL && White <= 3)
-			if (Black <= 2 || eval < 500)
-				return (0);
-
-		if (nwk == 1 && WGL && !BGL && Black <= 3)
-			if (White <= 2 || eval > -500)
-				return (0);
+		if (nwk == 1 && WGL && !BGL && Black <= 3 && (White <= 2 || eval > -500))
+			return 0;
 	
 		
 		int w_lattice = 0;
@@ -244,7 +242,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		}
 	}  // ENDGAME
 
-	
+
 	v1 = 100 * nbm + 250 * nbk;
 	v2 = 100 * nwm + 250 * nwk;
 	eval = v1 - v2;
@@ -348,7 +346,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	/* center control */
 	// for black color
 
-	eval = center_control(eval, bp, empty, F_21, F_6, F_11, F_17, F_13, BLACK);
+	eval = center_control(eval, bp, empty, F_21, F_16, F_11, F_17, F_13, BLACK);
 	eval = center_control(eval, bp, empty, F_20, F_15, F_10, F_16, F_12, BLACK);
 	eval = center_control(eval, bp, empty, F_16, F_11, F_6, F_12, F_8, BLACK);
 
@@ -399,7 +397,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	eval -= __builtin_popcountll(wp & (F_22 | F_13));
 	if ((wp & F_14) != 0 && (empty & F_6) != 0)
 		eval--;
-	
+
 	// e5
 	if (notEmpty & F_25) {
 		if (bp & F_25)
@@ -415,12 +413,12 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		if (wp & F_20)
 			if (phase != OPENING) {
 				eval = is_good_piece(eval - 1, wp, empty, F_24, F_28, WHITE);
-				eval = is_good_piece(eval, wp, empty, F_25, F_30, BLACK);
+				eval = is_good_piece(eval, wp, empty, F_25, F_30, WHITE);
 			}
 			else
 				eval += 4;
 	}
-
+	
 	// reward checkers that will king on the next move:
 	int p_bonus = (phase == OPENING ? 8 : 16); // promote in one bonus
 	eval += (color == BLACK ? p_bonus << 1 : p_bonus) * __builtin_popcountll((((ROW_1 & empty) << 1) & blackPieces) | ( ((ROW_1 & empty) << 9) & blackPieces));
@@ -436,8 +434,9 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	if (w_lattice) eval += w_lattice - 2;
 	b_lattice = abs(b_lattice);
 	if (b_lattice) eval -= b_lattice - 2;
+	
 
-	int turn = 2;
+
 	if (phase == OPENING) {
 		if (blackPieces & F_15)
 			eval--;
@@ -453,14 +452,11 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 			eval -= 5;
 	}
 
-	// int turn = ( phase == OPENING ? 3:2 );  // color to move gets +turn
 	// negamax formulation requires this:
 	if (color == BLACK) {
-		eval += turn;
 		return (eval);
 	}
 	else {
-		eval -= turn;
 		return (-eval);
 	}
 

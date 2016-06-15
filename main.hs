@@ -17,7 +17,6 @@ import           Text.ParserCombinators.Parsec.Number
 import qualified Data.Vector.Unboxed as V
 import Eval
 import Debug.Trace
-import EvalLegacy
 
 printMove :: MoveHolder -> String
 printMove (JumpMove x) = printPath x "x"
@@ -41,7 +40,7 @@ matchMove actions (Kill x) = matchMove' actions x
 matchMove' :: [MoveHolder] -> [Int] -> MoveHolder
 matchMove' actions path
   | null actions = None
-  | null matchedActions = Invalid
+  | null matchedActions = trace ("Invalid: " ++ (show path) ) $Invalid
   | otherwise = head matchedActions
   where
     matchedActions = filter (isMoveMatching path) actions
@@ -101,7 +100,7 @@ loopGame state@(GameState board player _) table me = do
                                       !x <- readMove possibleActions
                                       return $ AlphaResult 0 x)
 
-  if move == Invalid then trace "Invalid move" $ loopGame state table me
+  if move == Invalid then loopGame state table me
   else do
     when (move /= None) (do
       when (player == me) . putStrLn . printMove $ move
@@ -119,6 +118,24 @@ main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
   hSetBuffering stderr NoBuffering
+  let testBoards = [initialBoard,
+                    Board {wp = 27021735203700736, bp = 8796663447552, k = 536870912},
+                    Board {wp = 35218900255232, bp = 36028797018963968, k = 33685504},
+                    Board {wp = 343597383680, bp = 9051352190156800, k = 35321811042304},
+                    Board {wp = 16777216, bp = 18049583015788544, k = 18049583032565760},
+                    Board {wp = 9007208465695233, bp = 549755813888, k = 549755813889},
+                    Board {bp = 8856458364416,wp = 27145225982967808, k = 103080787968},
+                    Board {wp = 140737555529728, bp = 45036547103522816, k = 140737488617472}]
+
+  -- res1 <- mapM (\x -> do 
+  --   a <- evaluate x Black (-mate) mate 20
+  --   b <- evaluateL x Black (-mate) mate 20
+  --   return (a, b, x)) $ testBoards
+  -- let res = filter (\(a,b, _) -> a /= b) res1
+  -- if null res then print "ok"
+  -- else mapM_ (\(a, b,_) -> putStrLn $ (show a) ++ ":" ++ (show b)) res
+
+
 
   -- res <- evaluate initialBoard White (-mate) mate 20
   -- res1 <- evaluateL initialBoard White (-mate) mate 20
@@ -148,15 +165,14 @@ main = do
   -- res1 <- evaluateL Board {bp = 8856458364416, wp = 27145225982967808, k = 103080787968} Black (-mate) mate 20
   -- putStrLn $ (show res) ++ ":" ++ (show res1)
 
+
   table <- allocate
   args <- getArgs
-  -- let weights = V.fromList . read $ args !! 1
-  -- print weights
   -- progName <- getProgName
-  -- mapM_ putStrLn args
+  --mapM_ putStrLn args
   -- putStrLn progName
-  let args = ["w"] -- do zakomentowania w programmie
-  case listToMaybe args of
+  --let args = ["w"] -- do zakomentowania w programmie
+  case (listToMaybe args) of
     Just "b" -> loopGame initialGameState table Black
     Just "w" -> loopGame initialGameState table White
     Nothing -> loopGame initialGameState table White
