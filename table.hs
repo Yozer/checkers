@@ -7,7 +7,7 @@ import           Data.Word
 
 -- CONFIGURATION
 size :: Int
-size = 5000000
+size = 4000000
 
 data TTFlag = Exact | LowerBound | UpperBound deriving (Show, Eq)
 

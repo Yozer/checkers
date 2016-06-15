@@ -101,7 +101,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 	int i, j;
 	int eval;
 	int v1, v2;
-	unsigned int phase = get_phase(nbm + nwm + nwk + nbk); // get game phase
+	unsigned int phase = get_phase(nbm + nwm + nbk + nwk); // get game phase
 
 	if (phase == ENDGAME) {
 		v1 = 100 * nbm + 300 * nbk;
@@ -109,10 +109,12 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		eval = v1 - v2;
 		int White = nwm + nwk; // total number of white pieces
 		int Black = nbm + nbk; // total number of black pieces
+		
 
 		if (nbk > 0 && (White < (2 + nbk)) && (eval < 0)) return (0);
 		if (nwk > 0 && (Black < (2 + nwk)) && (eval > 0)) return (0);
-
+		
+		
 		int WGL = 0; // white king on a1-h8
 		int BGL = 0; // black king on a1-h8
 		for (i = 5; i <= 40; i += 5) {
@@ -127,6 +129,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 					if (b[i] == BLK_KNG) BGL = 1;
 			}
 		}
+		
 
 		// surely winning advantage:
 		if (White == 1 && nwm == 1 && Black >= 4) eval = eval + (eval >> 1);
@@ -143,6 +146,8 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		if (nwk == 1 && WGL && !BGL && Black <= 3)
 			if (White <= 2 || eval > -500)
 				return (0);
+			
+		
 
 		static int PST_king[41] = { 0,0,0,0,0,  // 0..4
 												 2,1,0,2,0, // 5..9
@@ -205,6 +210,7 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 				}
 			}
 		}
+		return eval;
 		w_lattice = abs(w_lattice);
 		if (w_lattice) eval += w_lattice - 2;
 		b_lattice = abs(b_lattice);
@@ -258,11 +264,12 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 		}
 	}  // ENDGAME
 
+	return 0;
 	v1 = 100 * nbm + 250 * nbk;
 	v2 = 100 * nwm + 250 * nwk;
 	eval = v1 - v2;
 	eval += (200 * (v1 - v2)) / (v1 + v2);      /*favor exchanges if in material plus*/
-
+	return nbm;
 	// king's balance
 	if (nbk != nwk) {
 		if (nwk == 0 && nbm >= nwm - 2)
@@ -277,11 +284,9 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 
 	// Lazy evaluation
 	// Early exit from evaluation  if eval already is extremely low or extremely high
-
 	int teval = (color == WHITE) ? -eval : eval;
 	if (teval - 64 >= beta) return teval;
 	if (teval + 64 <= alpha) return teval;
-	
 	// back rank guard:
 	static int br[32] = { 0,-1,1,0,3,3,3,3,2,2,2,2,4,4,8,7,1,0,1,0,3,3,3,3,2,2,2,2,4,4,8,7 }; // back rank values
 	int code;
@@ -788,11 +793,9 @@ int evaluationL(int *b, int color, int alpha, int beta, int nbm, int nwm, int nb
 	// int turn = ( phase == OPENING ? 3:2 );  // color to move gets +turn
 	// negamax formulation requires this:
 	if (color == BLACK) {
-		eval += turn;
 		return (eval);
 	}
 	else {
-		eval -= turn;
 		return (-eval);
 	}
 

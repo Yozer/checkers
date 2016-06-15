@@ -29,10 +29,12 @@ maxTime :: Int64
 maxTime = 10
 
 iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
-iterativeDeepening gameState v = do
+iterativeDeepening gameState@(GameState _ player _) v = do
+  --clear v
   time <- getCurrentTime
   counter <- newIORef 0
-  !result <- iterativeDeepening' gameState v 6 0 time counter $ AlphaResult (-mate) None
+  let startingDepth = if player == White then 5 else 6
+  !result <- iterativeDeepening' gameState v startingDepth 0 time counter $ AlphaResult (-mate) None
   counter' <- readIORef counter
   trace ("Nodes visited: " ++ (show counter')) $ return result
 

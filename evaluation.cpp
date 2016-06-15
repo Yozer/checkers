@@ -116,6 +116,7 @@ static __inline int center_control(int eval, ull pieces, ull empty, ull sq1, ull
 
 int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdepth)
 {
+
 	ull whitePieces = (~k) & wp;
 	ull blackPieces = (~k) & bp;
 	ull whiteKings = wp & k;
@@ -128,7 +129,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	int nbk = __builtin_popcountll(blackKings);
 	int nwm = __builtin_popcountll(whitePieces);
 	int nwk = __builtin_popcountll(whiteKings);
-	
+
 	
 	if (bp == 0)  return (color == BLACK ? (realdepth - MATE) : MATE - realdepth);
 	if (wp == 0) return(color == WHITE ? (realdepth - MATE) : MATE - realdepth);
@@ -142,6 +143,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		v1 = 100 * nbm + 300 * nbk;
 		v2 = 100 * nwm + 300 * nwk;
 		eval = v1 - v2;
+		
 		int White = nwm + nwk; // total number of white pieces
 		int Black = nbm + nbk; // total number of black pieces
 
@@ -158,6 +160,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		// surely winning advantage:
 		if (White == 1 && nwm == 1 && Black >= 4) eval += (eval >> 1);
 		if (Black == 1 && nbm == 1 && White >= 4) eval += (eval >> 1);
+		
 		
 		// scaling down
 		if (nbk > 0 && eval < 0) eval = eval >> 1;
@@ -195,6 +198,8 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		eval -= 4*__builtin_popcountll((ROW_3 | F_13 | F_14) & whitePieces);
 		eval -= 2*__builtin_popcountll(ROW_2 & whitePieces);
 		
+		
+		
 		b_lattice += 2*__builtin_popcountll(Lattice2 & blackPieces);
 		b_lattice += -2*__builtin_popcountll(LatticeMinus2 & blackPieces);
 		w_lattice += 2*__builtin_popcountll(Lattice2 & whitePieces);
@@ -205,6 +210,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		if (w_lattice) eval += w_lattice - 2;
 		b_lattice = abs(b_lattice);
 		if (b_lattice) eval -= b_lattice - 2;
+		
 		/* the move */
 		if (nbk == 0 && nwk == 0 && nbm == nwm) {
 			int allstones = nbm + nwm;
@@ -232,6 +238,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		}
 
 		// negamax formulation requires this:
+		
 		if (color == BLACK) {
 			eval++; // small bonus for turn
 			return (eval);
@@ -242,11 +249,12 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		}
 	}  // ENDGAME
 
-
+	
 	v1 = 100 * nbm + 250 * nbk;
 	v2 = 100 * nwm + 250 * nwk;
 	eval = v1 - v2;
 	eval += (200 * (v1 - v2)) / (v1 + v2);      /*favor exchanges if in material plus*/
+	
 
 												// king's balance
 	if (nbk != nwk) {
@@ -256,15 +264,18 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 			if (nbk == 0 && nwm >= nbm - 2)
 				eval -= 200;
 	}
+	
 	// scaling down
 	if (nbk > 0 && eval < 0) eval = ((3 * eval) >> 2);
 	if (nwk > 0 && eval > 0) eval = ((3 * eval) >> 2);
+
 
 	// Lazy evaluation
 	// Early exit from evaluation  if eval already is extremely low or extremely high
 	int teval = (color == WHITE) ? -eval : eval;
 	if (teval - 64 >= beta) return teval;
 	if (teval + 64 <= alpha) return teval;
+	
 	// back rank guard:
 	static int br[32] = { 0,-1,1,0,3,3,3,3,2,2,2,2,4,4,8,7,1,0,1,0,3,3,3,3,2,2,2,2,4,4,8,7 }; // back rank values
 	int code;
@@ -336,20 +347,20 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 		eval += devsinglecornerval;
 		if (empty & F_6) eval -= 5; 
 	}
-
+	
 	if ((empty & (F_40 | F_35)) == (F_40 | F_35)) {
 		eval -= devsinglecornerval;
 		if (empty & F_39)
 			eval += 5;
 	}
-
+	
 	/* center control */
 	// for black color
 
 	eval = center_control(eval, bp, empty, F_21, F_16, F_11, F_17, F_13, BLACK);
 	eval = center_control(eval, bp, empty, F_20, F_15, F_10, F_16, F_12, BLACK);
 	eval = center_control(eval, bp, empty, F_16, F_11, F_6, F_12, F_8, BLACK);
-
+	
 	if ((bp & F_24) != 0 && (empty & (F_28 | F_29 | F_39)) == (F_28 | F_29 | F_39)) {
 		eval = is_good_piece(eval + 2, bp, empty, F_19, F_14, BLACK);
 		eval = is_good_piece(eval, bp, empty, F_20, F_16, BLACK);
@@ -397,7 +408,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	eval -= __builtin_popcountll(wp & (F_22 | F_13));
 	if ((wp & F_14) != 0 && (empty & F_6) != 0)
 		eval--;
-
+	
 	// e5
 	if (notEmpty & F_25) {
 		if (bp & F_25)
@@ -408,7 +419,7 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 			else
 				eval -= 4;
 	}
-
+	
 	if (notEmpty & F_20) {
 		if (wp & F_20)
 			if (phase != OPENING) {
@@ -435,7 +446,6 @@ int evaluation(ull wp,ull bp, ull k, int color, int alpha, int beta, int realdep
 	b_lattice = abs(b_lattice);
 	if (b_lattice) eval -= b_lattice - 2;
 	
-
 
 	if (phase == OPENING) {
 		if (blackPieces & F_15)

@@ -14,9 +14,8 @@ import           System.IO
 import           Table
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Number
-import qualified Data.Vector.Unboxed as V
-import Eval
-import Debug.Trace
+
+debuggingEnabled = True
 
 printMove :: MoveHolder -> String
 printMove (JumpMove x) = printPath x "x"
@@ -40,7 +39,7 @@ matchMove actions (Kill x) = matchMove' actions x
 matchMove' :: [MoveHolder] -> [Int] -> MoveHolder
 matchMove' actions path
   | null actions = None
-  | null matchedActions = trace ("Invalid: " ++ (show path) ) $Invalid
+  | null matchedActions = Invalid
   | otherwise = head matchedActions
   where
     matchedActions = filter (isMoveMatching path) actions
@@ -87,49 +86,37 @@ readMove actions = do
                   Right m -> matchMove actions m
                   Left _ -> None
 
---txtFile = "program1.txt"
 
 loopGame :: GameState -> TTableRef -> Player -> IO ()
 loopGame state@(GameState board player _) table me = do
   let possibleActions = getActions board player
 
-  AlphaResult _ !move <- if player == me then iterativeDeepening state table
-                             else (do
-                                      -- hPutStrLn stderr "Possible actions"
-                                      -- when (me == White) $ mapM_ (hPutStrLn stderr . printMove) possibleActions
-                                      !x <- readMove possibleActions
-                                      return $ AlphaResult 0 x)
-
-  if move == Invalid then loopGame state table me
+  if null possibleActions then 
+    when debuggingEnabled $ hPutStrLn stderr $ if player /= me then  "Win" else "Lost" 
   else do
-    when (move /= None) (do
+
+    AlphaResult _ !move <- if player == me then iterativeDeepening state table
+                               else do
+                                !x <- readMove possibleActions
+                                return $ AlphaResult 0 x
+
+    when (move /= Invalid) $ do
       when (player == me) . putStrLn . printMove $ move
       let newState@(GameState board' _ _) = doMove state move
-      hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
-      hPutStrLn stderr . printBoard $ board'
-      loopGame newState table me)
-
-    when (move == None) $ if not . null $ possibleActions then putStrLn "Timeout" else putStrLn (show player ++ " lost")
-  --when (move == None) $ hPutStrLn stderr $ show player ++ ": None move!!!!"
-
-
+      when debuggingEnabled $ do 
+        hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
+        hPutStrLn stderr . printBoard $ board'
+      loopGame newState table me
 
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
   hSetBuffering stderr NoBuffering
-  let testBoards = [initialBoard,
-                    Board {wp = 27021735203700736, bp = 8796663447552, k = 536870912},
-                    Board {wp = 35218900255232, bp = 36028797018963968, k = 33685504},
-                    Board {wp = 343597383680, bp = 9051352190156800, k = 35321811042304},
-                    Board {wp = 16777216, bp = 18049583015788544, k = 18049583032565760},
-                    Board {wp = 9007208465695233, bp = 549755813888, k = 549755813889},
-                    Board {bp = 8856458364416,wp = 27145225982967808, k = 103080787968},
-                    Board {wp = 140737555529728, bp = 45036547103522816, k = 140737488617472}]
+  let testBoards = [Board {wp = 17626562560000, bp = 9241386985388507136, k = 0}]
 
   -- res1 <- mapM (\x -> do 
   --   a <- evaluate x Black (-mate) mate 20
-  --   b <- evaluateL x Black (-mate) mate 20
+  --   let b = evaluateR x Black (-mate) mate 20
   --   return (a, b, x)) $ testBoards
   -- let res = filter (\(a,b, _) -> a /= b) res1
   -- if null res then print "ok"
@@ -137,41 +124,8 @@ main = do
 
 
 
-  -- res <- evaluate initialBoard White (-mate) mate 20
-  -- res1 <- evaluateL initialBoard White (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-  -- res <- evaluate Board {wp = 27021735203700736, bp = 8796663447552, k = 536870912} Black (-mate) mate 20
-  -- res1 <- evaluateL Board {wp = 27021735203700736, bp = 8796663447552, k = 536870912} Black (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-  -- res <- evaluate Board {wp = 35218900255232, bp = 36028797018963968, k = 33685504} Black (-mate) mate 20
-  -- res1 <- evaluateL Board {wp = 35218900255232, bp = 36028797018963968, k = 33685504} Black (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-  -- res <- evaluate Board {wp = 343597383680, bp = 9051352190156800, k = 35321811042304} Black (-mate) mate 20
-  -- res1 <- evaluateL Board {wp = 343597383680, bp = 9051352190156800, k = 35321811042304} Black (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-  -- res <- evaluate Board {wp = 16777216, bp = 18049583015788544, k = 18049583032565760} Black (-mate) mate 20
-  -- res1 <- evaluateL Board {wp = 16777216, bp = 18049583015788544, k = 18049583032565760} Black (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-  -- res <- evaluate Board {wp = 9007208465695233, bp = 549755813888, k = 549755813889} Black (-mate) mate 20
-  -- res1 <- evaluateL Board {wp = 9007208465695233, bp = 549755813888, k = 549755813889} Black (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-  -- res <- evaluate Board {bp = 8856458364416,wp = 27145225982967808, k = 103080787968} Black (-mate) mate 20
-  -- res1 <- evaluateL Board {bp = 8856458364416, wp = 27145225982967808, k = 103080787968} Black (-mate) mate 20
-  -- putStrLn $ (show res) ++ ":" ++ (show res1)
-
-
   table <- allocate
   args <- getArgs
-  -- progName <- getProgName
-  --mapM_ putStrLn args
-  -- putStrLn progName
-  --let args = ["w"] -- do zakomentowania w programmie
   case (listToMaybe args) of
     Just "b" -> loopGame initialGameState table Black
     Just "w" -> loopGame initialGameState table White
