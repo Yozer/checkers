@@ -1,13 +1,14 @@
 module Table where
 import           Board
 import           Control.Concurrent.MVar
+
 import           Control.Monad.ST
 import qualified Data.Vector.Mutable     as VM
 import           Data.Word
 
 -- CONFIGURATION
 size :: Int
-size = 4000000
+size = 3000000
 
 data TTFlag = Exact | LowerBound | UpperBound deriving (Show, Eq)
 

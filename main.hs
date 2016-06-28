@@ -2,6 +2,7 @@
 
 module Main where
 
+-- AUTOR: Dominik Baran
 import           Ai
 import           Board
 import           Control.Monad
@@ -15,6 +16,7 @@ import           Table
 import           Text.ParserCombinators.Parsec
 import           Text.ParserCombinators.Parsec.Number
 
+-- CONFIGURATION
 debuggingEnabled = True
 
 printMove :: MoveHolder -> String
@@ -24,8 +26,8 @@ printMove _ = "None"
 
 
 printPath :: Path -> String -> String
--- printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
-printPath path deli = intercalate deli . map (show  . rfield) $ path
+printPath path deli = intercalate deli . map (show . reverseBoardIndexing . rfield) $ path
+-- printPath path deli = intercalate deli . map (show  . rfield) $ path
 
 data PDN =   Move (Int,Int) -- pozycja startowa i koncowa
            | Kill [Int]  -- pozycja startowa to glowa, pozniej kolejne pozycje
@@ -45,10 +47,10 @@ matchMove' actions path
     matchedActions = filter (isMoveMatching path) actions
 
 isMoveMatching :: [Int] -> MoveHolder -> Bool
--- isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
--- isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
-isMoveMatching path (NormalMove x) = (getBoardFields path) == x
-isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
+isMoveMatching path (NormalMove x) = (getBoardFields . map reverseBoardIndexing $ path) == x
+isMoveMatching path (JumpMove x) = (getBoardFields . map  reverseBoardIndexing $ path) == x
+-- isMoveMatching path (NormalMove x) = (getBoardFields path) == x
+-- isMoveMatching path (JumpMove x) = (getBoardFields  path) == x
 isMoveMatching _ _ = False
 
 
@@ -92,7 +94,7 @@ loopGame state@(GameState board player _) table me = do
   let possibleActions = getActions board player
 
   if null possibleActions then 
-    when debuggingEnabled $ hPutStrLn stderr $ if player /= me then  "Win" else "Lost" 
+    when debuggingEnabled $ hPutStrLn stderr $ if player /= me then  "Won" else "Lost" 
   else do
 
     AlphaResult _ !move <- if player == me then iterativeDeepening state table
@@ -100,29 +102,19 @@ loopGame state@(GameState board player _) table me = do
                                 !x <- readMove possibleActions
                                 return $ AlphaResult 0 x
 
-    when (move /= Invalid) $ do
+    if (move /= Invalid) then do
       when (player == me) . putStrLn . printMove $ move
       let newState@(GameState board' _ _) = doMove state move
       when debuggingEnabled $ do 
         hPutStrLn stderr . (((show player) ++ ": ")++) . printMove $ move
         hPutStrLn stderr . printBoard $ board'
       loopGame newState table me
+    else hPutStrLn stderr "Invaid move"
 
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
   hSetBuffering stderr NoBuffering
-  let testBoards = [Board {wp = 17626562560000, bp = 9241386985388507136, k = 0}]
-
-  -- res1 <- mapM (\x -> do 
-  --   a <- evaluate x Black (-mate) mate 20
-  --   let b = evaluateR x Black (-mate) mate 20
-  --   return (a, b, x)) $ testBoards
-  -- let res = filter (\(a,b, _) -> a /= b) res1
-  -- if null res then print "ok"
-  -- else mapM_ (\(a, b,_) -> putStrLn $ (show a) ++ ":" ++ (show b)) res
-
-
 
   table <- allocate
   args <- getArgs

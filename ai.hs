@@ -2,46 +2,45 @@
 module Ai where
 
 import           Board
+import           Control.Monad
 import           Data.Int
 import           Data.IORef
 import           Data.Word
-import           Debug.Trace
 import           Eval
 import           Moves
 import           System.Clock
+import           System.IO
 import           Table
 
 type Counter = IORef Int
 
 data AlphaResult = AlphaResult Int MoveHolder | Timeout deriving(Eq, Show)
 
-
-takeValue (AlphaResult value _) = value
-takeMove (AlphaResult _ move) = move
-
-getCurrentTime :: IO Int64
-getCurrentTime = fmap sec (getTime Realtime)
+-- CONFIGURATION ------
+clearTT = False
+displayStatistics = True
+maxTime :: Int64
+maxTime = 2*60
 
 maxDeep :: Int
 maxDeep = 88
 
-maxTime :: Int64
-maxTime = 10
-
 iterativeDeepening :: GameState -> TTableRef -> IO AlphaResult
 iterativeDeepening gameState@(GameState _ player _) v = do
-  --clear v
+  when clearTT $ clear v
   time <- getCurrentTime
   counter <- newIORef 0
   let startingDepth = if player == White then 5 else 6
   !result <- iterativeDeepening' gameState v startingDepth 0 time counter $ AlphaResult (-mate) None
   counter' <- readIORef counter
-  trace ("Nodes visited: " ++ (show counter')) $ return result
+  when displayStatistics $ hPutStrLn stderr ("Nodes visited: " ++ (show counter'))
+  return result
 
 iterativeDeepening' :: GameState -> TTableRef -> Int -> Int -> Int64 -> Counter -> AlphaResult -> IO AlphaResult
 iterativeDeepening' gameState v depth firstGuess time counter previousResult = do
   !result <- mtdf gameState v firstGuess depth time counter
-  trace ("Depth: " ++ (show depth) ++ " result:" ++ (show result)) $ if result == Timeout then return previousResult
+  when displayStatistics $ hPutStrLn stderr ("Depth: " ++ (show depth) ++ " result:" ++ (show result))
+  if result == Timeout then return previousResult
   else if depth >= maxDeep then return result
   else iterativeDeepening' gameState v (depth + 2) (takeValue result) time counter result
 
@@ -85,10 +84,8 @@ alphaBeta' gameState@(GameState board player hash) depth realDepth alpha beta v 
     let actions = if bestMoveForNode /= None then bestMoveForNode:tmpActions else tmpActions
 
     if ttEntry /= TTNone && not isOldDepth && (tFlag ttEntry == Exact || alpha' >= beta') then return $ AlphaResult (tValue ttEntry) (tMove ttEntry)
-    else if isGameEnded board then do 
-      evalResult <- evaluate board player alpha' beta' realDepth
-      return $ AlphaResult evalResult None
-    else if depth == 0 then quiesceBoard gameState alpha' beta' realDepth
+    else if isGameEnded board then return $ AlphaResult (evaluate board player alpha' beta' realDepth) None
+    else if depth == 0 then return $ quiesceBoard gameState alpha' beta' realDepth
     else if null actions then return $ AlphaResult (realDepth - mate) None
     else makeMoves actions gameState depth realDepth (AlphaResult (-mate - 1) None) alpha' hash alpha' beta' v time counter
 
@@ -117,26 +114,28 @@ makeMoves (move:restMoves) gameState depth realDepth (AlphaResult best bestMove)
       )
     else makeMoves restMoves gameState depth realDepth (AlphaResult best' bestMove') alphaOrigin sourceHash alpha' beta v time counter
 
-quiesceBoard :: GameState -> Int -> Int -> Int -> IO AlphaResult
-quiesceBoard gameState@(GameState board player _) alpha beta depth =
-  if null jumpMoves then do
-    evalResult <- evaluate board player alpha beta depth
-    return $ AlphaResult evalResult None
-  else 
-    quiesceMoves jumpMoves gameState alpha beta depth $ AlphaResult ((-mate) -1) None
+quiesceBoard :: GameState -> Int -> Int -> Int -> AlphaResult
+quiesceBoard gameState@(GameState board player _) alpha beta depth
+  | null jumpMoves = AlphaResult (evaluate board player alpha beta depth) None
+  | otherwise = quiesceMoves jumpMoves gameState alpha beta depth $ AlphaResult ((-mate) -1) None
   where
     jumpMoves = map JumpMove . filterJumps $ getJumps board player
 
-quiesceMoves:: [MoveHolder] -> GameState ->  Int -> Int -> Int -> AlphaResult -> IO AlphaResult
-quiesceMoves (jump:restJumps) gameState alpha beta depth (AlphaResult best _) = do
-  result <- quiesceBoard newState alpha beta (depth + 1)
-  let value = negate . takeValue $ result
-  let best' = max value best
-
-  if null restJumps then return $ AlphaResult best' None
-  else quiesceMoves restJumps gameState alpha beta depth $ AlphaResult best' None
+quiesceMoves:: [MoveHolder] -> GameState ->  Int -> Int -> Int -> AlphaResult -> AlphaResult
+quiesceMoves (jump:restJumps) gameState alpha beta depth (AlphaResult best _)
+  | null restJumps = AlphaResult best' None
+  | otherwise = quiesceMoves restJumps gameState alpha beta depth $ AlphaResult best' None
   where
+    result = quiesceBoard newState alpha beta (depth + 1)
+    value = negate . takeValue $ result
+    best' = max value best
     newState = doMove gameState jump
-    
-    
-    
+
+
+takeValue (AlphaResult value _) = value
+takeMove (AlphaResult _ move) = move
+
+getCurrentTime :: IO Int64
+getCurrentTime = fmap sec (getTime Realtime)
+
+

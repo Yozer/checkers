@@ -48,40 +48,6 @@ getIndex x
 s :: Word64 -> Word64 -- get powers of two
 s i = if i < 64 then unsafeShiftL 1 (fromIntegral i) else 0
 
-f 5=32
-f 6=31
-f 7=30
-f 8=29
-f 10=28
-f 11=27
-f 12=26
-f 13=25
-f 14=24
-f 15=23
-f 16=22
-f 17=21
-f 19=20
-f 20=19
-f 21=18
-f 22=17
-f 23=16
-f 24=15
-f 25=14
-f 26=13
-f 28=12
-f 29=11
-f 30=10
-f 31=9
-f 32=8
-f 33=7
-f 34=6
-f 35=5
-f 37=4
-f 38=3
-f 39=2
-f 40=1
-f _ = -1
-
 field :: Int -> Word64
 field 0 = 0
 field 1 = s 0

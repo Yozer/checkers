@@ -1,112 +1,23 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
 module Eval where
 
 import           Board
 import           Data.Bits
+import qualified Data.Vector.Unboxed as V
 import           Data.Word
 import           Masks
-import Foreign
-import Foreign.C
-import Debug.Trace
-import Control.Monad
-import qualified Data.Vector.Unboxed as V
 
 opening = 1
 midGame = 2
 endGame = 3
 
 mate = 10000 :: Int
-occupiet = 16 :: Int
 
-fe = 0 :: Int
-white = 1 :: Int
-black = 2 :: Int
-man = 4 :: Int
-king = 8 :: Int
-
-evaluate :: Board -> Player -> Int -> Int -> Int -> IO Int
-evaluate board player alpha beta depth = do
-  (CInt result) <- c_eval (CULLong $ (wp board)) (CULLong $ (bp board)) (CULLong $ k board) color (getUint alpha) (getUint beta) (getUint depth)
-  --result1 <- evaluateL board player alpha beta depth
-  let result2 = evaluateR board player alpha beta depth
-  --when (result /= (fromIntegral result1)) $ trace ("diff: " ++ (show result) ++ ":" ++ (show result1) ++ ":  " ++ (show board)) $ error "wtf"
-  when (result2 /= (fromIntegral result)) $ trace ("diffV2: " ++ (show result2) ++ ":" ++ (show result) ++ ":  " ++ (show board)) $ error (show .popCount . blackPieces $ board)
-  
-
-  -- let notKings = complement $ k board
-  -- let wKingsCount = pieceCount . whiteKings $ board
-  -- let bKingsCount = pieceCount . blackKings $ board
-  -- let (wp board)iecesCount = pieceCount $ notKings .&. (wp board) board
-  -- let (bp board)iecesCount = pieceCount $ notKings .&. (bp board) board
-  -- let resultType = 35 * (wKingsCount - bKingsCount) + 10 * ((wp board)iecesCount - (bp board)iecesCount)
-  -- let f = filterByPlayer player
-
-  -- let result = if (wp board) board == 0 then f $ -mate
-  --              else if (bp board) board == 0 then f $ mate
-  --               else f resultType
-
-  return . fromIntegral $ result
-  where
-    color = getUint $ if player == White then white else black
+-- najładniejszy kod...
+-- pisany na baaardzo szybko
 
 
-getUint = CInt . fromIntegral
-
-
--- evaluateL :: Board -> Player -> Int -> Int -> Int -> IO Int
--- evaluateL board player alpha beta depth = do
---   b <- convertBoard board
---   (CInt result) <- c_evalL b color (getUint alpha) (getUint beta) blackPiecesN whitePiecesN blackKingsN whiteKingsN (getUint depth)
---   return . fromIntegral $ result
---   where
---     whitePiecesN = getUint $ popCount . whitePieces $ board
---     blackPiecesN = getUint $ popCount . blackPieces $ board
---     whiteKingsN = getUint $ popCount . whiteKings $ board
---     blackKingsN = getUint $ popCount . blackKings $ board
---     color = getUint $ if player == White then white else black
-
-convertBoard :: Board -> IO (Ptr CInt)
-convertBoard board = newArray board'
-  where
-    board' = map (\x -> getUint $ mapPiece x board) . map f $ [0..40]
-
-mapPiece :: Int -> Board -> Int
-mapPiece index board
-  | index == -1 = occupiet
-  | isKing && isWhite = white .|. king
-  | isKing && isBlack = black .|. king
-  | isWhite = white .|. man
-  | isBlack = black .|. man
-  | otherwise = fe
-  where
-    x = field . fromIntegral $ index
-    isKing = k board .&. x /= 0
-    isWhite = (wp board) .&. x /= 0
-    isBlack = (bp board) .&. x /= 0
-
-
-filterByPlayer :: Player -> Int -> Int
-filterByPlayer p x = if p == White then x else -x
-
---pieceCount = fromIntegral . popCount
-
--- board -> color -> alpha -> beta -> blackPieces -> whitePieces -> blackKings -> whiteKings -> depth -> eval
--- foreign import ccall "evaluationL" c_evalL :: Ptr CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> IO CInt
-
--- board -> color -> alpha -> beta -> blackPieces -> whitePieces -> blackKings -> whiteKings -> depth -> eval
-foreign import ccall "evaluation" c_eval :: CULLong -> CULLong -> CULLong -> CInt -> CInt -> CInt -> CInt -> IO CInt
-
-
-
-
-
-
-
-
-
-
-evaluateR :: Board -> Player -> Int -> Int -> Int -> Int
-evaluateR board player alpha beta depth
+evaluate :: Board -> Player -> Int -> Int -> Int -> Int
+evaluate board player alpha beta depth
   | bp board == 0 = if player == Black then (depth - mate) else (mate - depth)
   | wp board == 0 = if player == White then (depth - mate) else (mate - depth)
   | phase == endGame = evaluateEndGame
@@ -174,7 +85,7 @@ evaluateR board player alpha beta depth
           | nbk == nwk = 0
           | otherwise = res
           where
-            res 
+            res
               | nwk == 0 && nbm >= nwm - 2 = 200
               | nbk == 0 && nwm >= nbm - 2 = -200
               | otherwise = 0
@@ -203,37 +114,37 @@ evaluateR board player alpha beta depth
         eval4 = eval3 + calculateBackrank allPieces whitePieces blackPieces phase
         eval5 = eval4 + balance whitePieces blackPieces whiteKings blackKings nbm nwm
         eval6 = eval5 + checkSingleCorner
-        eval7 = centerControl eval6 (bp board) empty (field 18) (field 22) (field 27) (field 21) (field 25) 1
-        eval8 = centerControl eval7 (bp board) empty (field 19) (field 23) (field 28) (field 22) (field 26) 1
-        eval9 = centerControl eval8 (bp board) empty (field 22) (field 27) (field 31) (field 26) (field 29) 1
+        eval7 = centerControl eval6 (bp board) empty (field 18) (field 22) (field 27) (field 21) (field 25) color
+        eval8 = centerControl eval7 (bp board) empty (field 19) (field 23) (field 28) (field 22) (field 26) color
+        eval9 = centerControl eval8 (bp board) empty (field 22) (field 27) (field 31) (field 26) (field 29) color
 
         condition1 = ((bp board) .&. field 15) /= 0 && (empty .&. (mergeBoardFields [12,11,2])) == (mergeBoardFields [12,11,2])
-        eval10 = if condition1 then isGoodPiece (eval9 + 2) (bp board) empty (field 20) (field 24) 1 else eval9
-        eval11 = if condition1 then isGoodPiece eval10 (bp board) empty (field 19) (field 22) 1 else eval10
+        eval10 = if condition1 then isGoodPiece (eval9 + 2) (bp board) empty (field 20) (field 24) color else eval9
+        eval11 = if condition1 then isGoodPiece eval10 (bp board) empty (field 19) (field 22) color else eval10
 
         condition2 = ((bp board) .&. field 11) /= 0 && (empty .&. field 3) /= 0
-        eval12 = if condition2 then isGoodPiece (eval11 + 2) (bp board) empty (field 15) (field 20) 1 else eval11
-        eval13 = if condition2 then isGoodPiece eval12 (bp board) empty (field 14) (field 18) 1 else eval12
+        eval12 = if condition2 then isGoodPiece (eval11 + 2) (bp board) empty (field 15) (field 20) color else eval11
+        eval13 = if condition2 then isGoodPiece eval12 (bp board) empty (field 14) (field 18) color else eval12
 
         condition3 = ((bp board) .&. field 10) /= 0 && (empty .&. field 2) /= 0
-        eval14 = if condition3 then isGoodPiece (eval13 + 2) (bp board) empty (field 14) (field 19) 1 else eval13
-        eval15 = if condition3 then isGoodPiece eval14 (bp board) empty (field 13) (field 17) 1 else eval14
+        eval14 = if condition3 then isGoodPiece (eval13 + 2) (bp board) empty (field 14) (field 19) color else eval13
+        eval15 = if condition3 then isGoodPiece eval14 (bp board) empty (field 13) (field 17) color else eval14
 
-        eval16 = centerControl eval15 (wp board) empty (field 15) (field 12) (field 8) (field 11) (field 6) (-1)
-        eval17 = centerControl eval16 (wp board) empty (field 11) (field 7) (field 4) (field 6) (field 2) (-1)
-        eval18 = centerControl eval17 (wp board) empty (field 14) (field 11) (field 7) (field 10) (field 5) (-1)
+        eval16 = centerControl eval15 (wp board) empty (field 15) (field 12) (field 8) (field 11) (field 6) color
+        eval17 = centerControl eval16 (wp board) empty (field 11) (field 7) (field 4) (field 6) (field 2) color
+        eval18 = centerControl eval17 (wp board) empty (field 14) (field 11) (field 7) (field 10) (field 5) color
 
         condition4 = ((wp board) .&. field 18) /= 0 && (empty .&. (mergeBoardFields [22,21,31])) == (mergeBoardFields [22,21,31])
-        eval19 = if condition4 then isGoodPiece (eval18 - 2) (wp board) empty (field 14) (field 11) (-1) else eval18
-        eval20 = if condition4 then isGoodPiece eval19 (wp board) empty (field 13) (field 9) (-1) else eval19
+        eval19 = if condition4 then isGoodPiece (eval18 - 2) (wp board) empty (field 14) (field 11) color else eval18
+        eval20 = if condition4 then isGoodPiece eval19 (wp board) empty (field 13) (field 9) color else eval19
 
         condition5 = ((wp board) .&. field 22) /= 0 && (empty .&. field 30) /= 0
-        eval21 = if condition5 then isGoodPiece (eval20 - 2) (wp board) empty (field 19) (field 15) (-1) else eval20
-        eval22 = if condition5 then isGoodPiece eval21 (wp board) empty (field 18) (field 13) (-1) else eval21
+        eval21 = if condition5 then isGoodPiece (eval20 - 2) (wp board) empty (field 19) (field 15) color else eval20
+        eval22 = if condition5 then isGoodPiece eval21 (wp board) empty (field 18) (field 13) color else eval21
 
         condition6 = ((wp board) .&. field 23) /= 0 && (empty .&. field 31) /= 0
-        eval23 = if condition6 then isGoodPiece (eval22 - 2) (wp board) empty (field 20) (field 16) (-1) else eval22
-        eval24 = if condition6 then isGoodPiece eval23 (wp board) empty (field 19) (field 14) (-1) else eval23
+        eval23 = if condition6 then isGoodPiece (eval22 - 2) (wp board) empty (field 20) (field 16) color else eval22
+        eval24 = if condition6 then isGoodPiece eval23 (wp board) empty (field 19) (field 14) color else eval23
 
         eval25 = eval24 - (popCount ((bp board) .&. (mergeBoardFields [25,17,24])))
         eval26 = eval25 + (popCount ((bp board) .&. (mergeBoardFields [16,8])))
@@ -329,7 +240,7 @@ calculateBackrank allPieces whitePieces blackPieces phase = brv*backRank2
     code5 = code4 + if (blackPieces .&. (field 25) /= 0) then 16 else 0
     backRank1 = brTable code5
 
-    code6 = if (allPieces .&. (field 4) /= 0) then 8 else 0 
+    code6 = if (allPieces .&. (field 4) /= 0) then 8 else 0
     code7 = code6 + if (allPieces .&. (field 3) /= 0) then 4 else 0
     code8 = code7 + if (allPieces .&. (field 2) /= 0) then 2 else 0
     code9 = code8 + if (allPieces .&. (field 1) /= 0) then 1 else 0
